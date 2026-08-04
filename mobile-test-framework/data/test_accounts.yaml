@@ -1,0 +1,38 @@
+# ============================================================
+# 测试账号配置
+# ============================================================
+# 注意:
+#   1. 此文件仅用于本地开发和调试
+#   2. CI/CD环境中通过环境变量覆盖
+#   3. 请勿提交真实密码到版本控制
+#   4. 主配置见 config/config.yaml -> test_accounts
+# ============================================================
+
+# --- 默认测试账号 ---
+default:
+  username: "testuser"
+  password: "testpass123"
+  email: "test@dolphin.com"
+  role: "普通用户"
+
+# --- 管理员账号 ---
+admin:
+  username: "admin"
+  password: "admin@2026"
+  email: "admin@dolphin.com"
+  role: "管理员"
+
+# --- 企业用户 ---
+enterprise:
+  username: "enterprise_user"
+  password: "enterprise@2026"
+  email: "enterprise@dolphin.com"
+  role: "企业用户"
+  company: "深圳市无人机科技有限公司"
+
+# --- 独立从业者 ---
+individual:
+  username: "individual_user"
+  password: "individual@2026"
+  email: "individual@dolphin.com"
+  role: "独立从业者"

@@ -1,0 +1,28 @@
+# ============================================================
+# 低空空管自动化系统 - 移动端自动化测试框架
+# Python依赖清单
+# ============================================================
+
+# Appium Python客户端 (Appium2 兼容)
+Appium-Python-Client>=4.0.0
+
+# Selenium (Appium底层依赖)
+selenium>=4.15.0
+
+# Pytest测试框架
+pytest>=8.0.0
+pytest-xdist>=3.5.0          # 并行测试执行
+pytest-rerunfailures>=13.0   # 失败重试
+
+# Allure报告
+allure-pytest>=2.13.0
+
+# YAML配置解析
+PyYAML>=6.0
+
+# 日志增强
+colorlog>=6.8.0              # 彩色控制台日志
+
+# 工具库
+python-dateutil>=2.8.0       # 时间处理
+Pillow>=10.0.0               # 截图处理(可选)

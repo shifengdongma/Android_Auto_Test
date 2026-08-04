@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>登录 - 低空空管小程序</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.content{flex:1;display:flex;flex-direction:column;padding:40px 24px 24px}
+.logo{text-align:center;margin-bottom:40px}
+.logo .icon{font-size:48px;margin-bottom:12px}
+.logo h1{font-size:20px;color:var(--mp-text);font-weight:600}
+.logo p{font-size:13px;color:var(--mp-muted);margin-top:6px}
+.tabs{display:flex;margin-bottom:24px;border-bottom:1px solid var(--mp-border)}
+.tabs .tab{flex:1;text-align:center;padding:12px 0;font-size:14px;color:var(--mp-muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tabs .tab.active{color:var(--mp-blue);border-bottom-color:var(--mp-blue)}
+.form{display:flex;flex-direction:column;gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:13px;color:var(--mp-muted)}
+.form-group input{height:44px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.form-group input:focus{border-color:var(--mp-blue)}
+.form-group input::placeholder{color:var(--mp-muted)}
+.form-row{display:flex;gap:10px}
+.form-row input{flex:1}
+.form-row .code-btn{width:110px;height:44px;border-radius:10px;border:1px solid var(--mp-blue);background:transparent;color:var(--mp-blue);font-size:13px;cursor:pointer;flex-shrink:0}
+.form-row .code-btn.disabled{border-color:var(--mp-border);color:var(--mp-muted);cursor:not-allowed}
+.form-row .captcha-img{width:110px;height:44px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);flex-shrink:0;cursor:pointer;display:block}
+.form-actions{margin-top:8px;display:flex;flex-direction:column;gap:12px}
+.btn{height:48px;border-radius:24px;border:none;font-size:16px;font-weight:500;cursor:pointer;width:100%}
+.btn-primary{background:var(--mp-blue);color:#fff}
+.btn-wechat{background:#07c160;color:#fff}
+.form-links{display:flex;justify-content:space-between;font-size:13px}
+.form-links a{color:var(--mp-blue);text-decoration:none;cursor:pointer}
+.divider{display:flex;align-items:center;gap:12px;margin:20px 0;font-size:12px;color:var(--mp-muted)}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--mp-border)}
+.panel{display:none;flex-direction:column;gap:14px}
+.panel.active{display:flex}
+/* 找回密码页面 */
+.screen-recover{position:absolute;inset:0;background:var(--mp-bg);z-index:50;display:flex;flex-direction:column}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0;border-bottom:1px solid var(--mp-border)}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px;cursor:pointer;background:none;border:none}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.recover-content{flex:1;padding:32px 24px;display:flex;flex-direction:column}
+.recover-step{display:none;flex-direction:column;gap:16px}
+.recover-step.active{display:flex}
+.step-title{font-size:20px;font-weight:600;color:var(--mp-text);margin-bottom:4px}
+.step-desc{font-size:13px;color:var(--mp-muted);margin-bottom:12px;line-height:1.5}
+.step-indicator{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+.step-dot{width:8px;height:8px;border-radius:50%;background:var(--mp-border)}
+.step-dot.active{background:var(--mp-blue);width:24px;border-radius:4px}
+.step-dot.done{background:var(--mp-green)}
+/* toast */
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:999;pointer-events:none;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="content">
+    <div class="logo"><div class="icon">&#9992;</div><h1>低空飞行服务</h1><p>低空空管系统移动端</p></div>
+    <div class="panel active" id="panel0">
+      <div class="form">
+        <div class="form-group"><label>账号</label><input placeholder="请输入用户名"/></div>
+        <div class="form-group"><label>密码</label><input type="password" placeholder="请输入密码"/></div>
+        <div class="form-group">
+          <label>图片验证码</label>
+          <div class="form-row">
+            <input id="captchaInput" placeholder="请输入验证码" maxlength="4"/>
+            <canvas class="captcha-img" id="captchaImg" width="110" height="44" onclick="refreshCaptcha()" title="点击刷新"></canvas>
+          </div>
+        </div>
+        <div class="form-links"><a onclick="openRecover()">忘记密码？</a></div>
+        <div class="form-actions"><button class="btn btn-primary" onclick="doLogin()">登录</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 找回密码流程 -->
+  <div class="screen-recover" id="screenRecover" style="display:none">
+    <div class="page-header"><button class="back" onclick="recoverBack()">&#10094;</button><div class="title" id="recoverTitle">找回密码</div><div class="placeholder"></div></div>
+    <div class="recover-content">
+      <!-- 步骤指示器 -->
+      <div class="step-indicator">
+        <span class="step-dot active" id="dot1"></span>
+        <span class="step-dot" id="dot2"></span>
+        <span class="step-dot" id="dot3"></span>
+      </div>
+
+      <!-- Step 1: 输入邮箱 + 获取验证码 -->
+      <div class="recover-step active" id="recoverStep1">
+        <div class="step-title">验证邮箱</div>
+        <div class="step-desc">请输入您注册时绑定的邮箱地址，我们将发送验证码到该邮箱。</div>
+        <div class="form">
+          <div class="form-group"><label>邮箱地址</label><input id="recoverEmail" placeholder="请输入邮箱" type="email"/></div>
+          <div class="form-group">
+            <label>验证码</label>
+            <div class="form-row">
+              <input id="recoverCode" placeholder="请输入验证码" maxlength="6"/>
+              <button class="code-btn" id="codeBtn" onclick="sendCode()">获取验证码</button>
+            </div>
+          </div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="verifyCode()">下一步</button></div>
+        </div>
+      </div>
+
+      <!-- Step 2: 重置密码 -->
+      <div class="recover-step" id="recoverStep2">
+        <div class="step-title">重置密码</div>
+        <div class="step-desc">请设置新密码，密码长度8-20位，需包含字母和数字。</div>
+        <div class="form">
+          <div class="form-group"><label>新密码</label><input id="newPwd" type="password" placeholder="请输入新密码"/></div>
+          <div class="form-group"><label>确认密码</label><input id="confirmPwd" type="password" placeholder="请再次输入新密码"/></div>
+          <div class="form-actions"><button class="btn btn-primary" onclick="submitReset()">提交</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+var recoverStep=1;
+var countdown=0;
+var timer=null;
+var captchaText='';
+
+// ---- 图片验证码 ----
+function genCaptcha(){
+  var chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var s='';
+  for(var i=0;i<4;i++){s+=chars.charAt(Math.floor(Math.random()*chars.length));}
+  return s;
+}
+function refreshCaptcha(){
+  captchaText=genCaptcha();
+  var cv=document.getElementById('captchaImg');
+  if(!cv||!cv.getContext)return;
+  var ctx=cv.getContext('2d');
+  var w=cv.width,h=cv.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle='#141414';
+  ctx.fillRect(0,0,w,h);
+  // 干扰线
+  for(var i=0;i<5;i++){
+    ctx.strokeStyle='rgba('+rnd(80,180)+','+rnd(80,180)+','+rnd(80,180)+',.6)';
+    ctx.beginPath();
+    ctx.moveTo(rnd(0,w),rnd(0,h));
+    ctx.lineTo(rnd(0,w),rnd(0,h));
+    ctx.stroke();
+  }
+  // 干扰点
+  for(var j=0;j<24;j++){
+    ctx.fillStyle='rgba('+rnd(100,200)+','+rnd(100,200)+','+rnd(100,200)+',.5)';
+    ctx.fillRect(rnd(0,w),rnd(0,h),2,2);
+  }
+  // 文字
+  var colors=['#2f7cf6','#38d46f','#ff9f43','#e7edf7','#ff6a6a'];
+  for(var k=0;k<captchaText.length;k++){
+    ctx.save();
+    ctx.font='bold '+rnd(22,26)+'px Arial';
+    ctx.fillStyle=colors[rnd(0,colors.length-1)];
+    var x=14+k*24,y=h/2+8;
+    ctx.translate(x,y);
+    ctx.rotate((rnd(-25,25))*Math.PI/180);
+    ctx.fillText(captchaText.charAt(k),0,0);
+    ctx.restore();
+  }
+}
+function rnd(min,max){return Math.floor(Math.random()*(max-min+1))+min;}
+
+function doLogin(){
+  var code=document.getElementById('captchaInput').value.trim();
+  if(!code){showToast('请输入图片验证码');return;}
+  if(code.toUpperCase()!==captchaText){
+    showToast('验证码错误，请重新输入');
+    refreshCaptcha();
+    document.getElementById('captchaInput').value='';
+    return;
+  }
+  location.href='小程序_首页.html';
+}
+
+function openRecover(){
+  document.getElementById('screenRecover').style.display='flex';
+  recoverStep=1;
+  updateRecoverUI();
+}
+function closeRecover(){
+  document.getElementById('screenRecover').style.display='none';
+  recoverStep=1;
+  updateRecoverUI();
+  // 清空输入
+  document.getElementById('recoverEmail').value='';
+  document.getElementById('recoverCode').value='';
+  document.getElementById('newPwd').value='';
+  document.getElementById('confirmPwd').value='';
+}
+function recoverBack(){
+  if(recoverStep===1){
+    closeRecover();
+  }else{
+    recoverStep--;
+    updateRecoverUI();
+  }
+}
+function updateRecoverUI(){
+  document.getElementById('recoverStep1').classList.toggle('active',recoverStep===1);
+  document.getElementById('recoverStep2').classList.toggle('active',recoverStep===2);
+  // 步骤点
+  var d1=document.getElementById('dot1'),d2=document.getElementById('dot2'),d3=document.getElementById('dot3');
+  d1.className='step-dot'+(recoverStep>=1?' active':'');
+  d2.className='step-dot'+(recoverStep>=2?' active':'');
+  d3.className='step-dot';
+  if(recoverStep===2){d1.className='step-dot done';}
+  // 标题
+  document.getElementById('recoverTitle').textContent=recoverStep===1?'找回密码':'重置密码';
+}
+
+function sendCode(){
+  var email=document.getElementById('recoverEmail').value.trim();
+  if(!email){showToast('请输入邮箱地址');return;}
+  if(countdown>0)return;
+  // 模拟发送
+  showToast('验证码已发送至 '+email);
+  countdown=60;
+  var btn=document.getElementById('codeBtn');
+  btn.classList.add('disabled');
+  btn.textContent=countdown+'s';
+  timer=setInterval(function(){
+    countdown--;
+    if(countdown<=0){
+      clearInterval(timer);
+      btn.classList.remove('disabled');
+      btn.textContent='重新获取';
+    }else{
+      btn.textContent=countdown+'s';
+    }
+  },1000);
+}
+
+function verifyCode(){
+  var email=document.getElementById('recoverEmail').value.trim();
+  var code=document.getElementById('recoverCode').value.trim();
+  if(!email){showToast('请输入邮箱地址');return;}
+  if(!code){showToast('请输入验证码');return;}
+  if(code.length<4){showToast('验证码格式不正确');return;}
+  // 模拟校验通过
+  recoverStep=2;
+  updateRecoverUI();
+}
+
+function submitReset(){
+  var pwd=document.getElementById('newPwd').value;
+  var confirm=document.getElementById('confirmPwd').value;
+  if(!pwd){showToast('请输入新密码');return;}
+  if(pwd.length<8){showToast('密码长度不能少于8位');return;}
+  if(!confirm){showToast('请确认密码');return;}
+  if(pwd!==confirm){showToast('两次密码输入不一致');return;}
+  // 模拟提交成功
+  showToast('密码重置成功，请重新登录');
+  setTimeout(function(){closeRecover();},1500);
+}
+
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2000);
+}
+
+// 初始化图片验证码
+refreshCaptcha();
+</script>
+</body>
+</html>

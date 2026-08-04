@@ -1,0 +1,65 @@
+# ============================================================
+# 登录模块 - 参数化测试数据
+# ============================================================
+# 用于 @pytest.mark.parametrize 数据驱动
+# ============================================================
+
+# 正常登录场景 (无参数化，使用配置文件中的默认账号)
+# 参见 config.yaml -> test_accounts
+
+# --- 异常登录场景 (参数化) ---
+login_failure_cases:
+  - username: "testuser"
+    password: "wrong_password_123"
+    expected_error: "密码错误"
+    description: "正确账号 + 错误密码"
+
+  - username: ""
+    password: "testpass123"
+    expected_error: "请输入账号"
+    description: "空账号"
+
+  - username: "testuser"
+    password: ""
+    expected_error: "请输入密码"
+    description: "空密码"
+
+  - username: ""
+    password: ""
+    expected_error: "请输入"
+    description: "账号密码均为空"
+
+# --- 找回密码场景 ---
+recover_password_cases:
+  - email: "test@dolphin.com"
+    code: "123456"
+    new_password: "NewTestPass@2026"
+    description: "正常找回密码流程"
+
+  - email: ""
+    code: "123456"
+    new_password: "NewTestPass@2026"
+    expected_error: "请输入邮箱"
+    description: "空邮箱"
+
+  - email: "test@dolphin.com"
+    code: ""
+    new_password: "NewTestPass@2026"
+    expected_error: "请输入验证码"
+    description: "空验证码"
+
+  - email: "test@dolphin.com"
+    code: "123456"
+    new_password: "123"
+    expected_error: "密码长度"
+    description: "密码过短 (<8位)"
+
+# --- 验证码场景 ---
+captcha_cases:
+  - captcha: ""
+    expected_error: "请输入验证码"
+    description: "空验证码"
+
+  - captcha: "AAAA"
+    expected_error: "验证码错误"
+    description: "错误验证码"

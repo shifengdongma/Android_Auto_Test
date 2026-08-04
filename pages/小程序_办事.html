@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>申报 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-tab-h:56px;--mp-status-h:44px;--mp-safe-b:34px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0;position:relative;z-index:30}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.tab-bar{height:calc(var(--mp-tab-h) + var(--mp-safe-b));background:var(--mp-nav);border-top:1px solid var(--mp-border);display:flex;align-items:flex-start;padding-top:8px;flex-shrink:0;position:relative;z-index:30}
+.tab-bar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--mp-muted);font-size:10px}
+.tab-bar a.active{color:var(--mp-blue)}
+.tab-bar a .icon{font-size:22px;height:26px;display:flex;align-items:center;justify-content:center}
+/* ---- Map ---- */
+.map-container{flex:1;position:relative;overflow:hidden;background:#0d1420}
+.map-svg{position:absolute;inset:0;width:100%;height:100%}
+/* V marker for 起降场 */
+.vpad{position:absolute;z-index:6;display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-100%);pointer-events:none}
+.vpad .vmark{width:34px;height:34px;border-radius:50%;background:var(--mp-blue);border:2px solid #fff;color:#fff;font-size:20px;font-weight:800;line-height:30px;text-align:center;box-shadow:0 4px 10px rgba(0,0,0,.5)}
+.vpad.clickable .vmark{cursor:pointer;pointer-events:auto;transition:transform .15s}
+.vpad.clickable .vname{cursor:pointer;pointer-events:auto}
+.vpad.clickable .vmark:active{transform:scale(.9)}
+.vpad.sel .vmark{background:var(--mp-orange);transform:scale(1.12);box-shadow:0 0 0 6px rgba(255,159,67,.25),0 4px 10px rgba(0,0,0,.5)}
+.vpad .vname{margin-top:4px;font-size:12px;font-weight:600;color:#fff;background:rgba(11,15,24,.85);padding:2px 8px;border-radius:8px;white-space:nowrap;border:1px solid var(--mp-border)}
+/* search bar */
+.search-bar{position:absolute;top:12px;left:16px;right:16px;display:flex;gap:8px;z-index:20}
+.search-bar .sbox{flex:1;height:40px;border-radius:20px;background:rgba(17,24,38,.92);color:var(--mp-text);padding:0 16px;font-size:13px;display:flex;align-items:center;gap:8px;backdrop-filter:blur(8px);border:1px solid var(--mp-border);cursor:pointer}
+.search-bar .sbox.muted{color:var(--mp-muted)}
+.search-bar .sback{width:40px;height:40px;border-radius:50%;background:rgba(17,24,38,.92);border:1px solid var(--mp-border);color:var(--mp-text);display:flex;align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(8px)}
+.gps-btn{position:absolute;right:16px;width:40px;height:40px;border-radius:50%;background:rgba(17,24,38,.92);border:1px solid var(--mp-border);display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;backdrop-filter:blur(8px);z-index:15}
+/* quick search panel */
+.quick-panel{position:absolute;top:64px;left:16px;right:16px;background:rgba(17,24,38,.96);border-radius:var(--mp-radius);border:1px solid var(--mp-border);padding:12px;backdrop-filter:blur(8px);z-index:18}
+.qp-title{font-size:12px;color:var(--mp-muted);margin-bottom:8px}
+.qp-item{padding:10px 0;border-bottom:1px solid var(--mp-border);display:flex;align-items:center;gap:10px;cursor:pointer}
+.qp-item:last-child{border-bottom:none}
+.qp-item .qp-name{font-size:13px;color:var(--mp-text)}
+.qp-item .qp-dist{font-size:11px;color:var(--mp-muted);margin-left:auto}
+/* bottom floating action */
+.map-actions{position:absolute;bottom:16px;left:16px;right:16px;display:flex;gap:10px;z-index:20}
+.map-btn{flex:1;height:46px;border-radius:23px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.map-btn-primary{background:var(--mp-blue);color:#fff;box-shadow:0 6px 16px rgba(47,124,246,.4)}
+.map-btn-outline{background:rgba(17,24,38,.92);border:1px solid var(--mp-border);color:var(--mp-text);backdrop-filter:blur(8px)}
+/* detail sheet */
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--mp-card);border-radius:18px 18px 0 0;border:1px solid var(--mp-border);border-bottom:none;padding:16px 16px 76px;z-index:19;box-shadow:0 -8px 24px rgba(0,0,0,.4)}
+.sheet .grab{width:36px;height:4px;border-radius:2px;background:var(--mp-border);margin:0 auto 12px}
+.sheet-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.sheet-head .sh-name{font-size:16px;font-weight:700;color:var(--mp-text)}
+.tag{padding:2px 8px;border-radius:6px;font-size:11px}
+.tag-green{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.tag-orange{background:rgba(255,159,67,.15);color:var(--mp-orange)}
+.tag-red{background:rgba(255,106,106,.15);color:var(--mp-red)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.kv .k{font-size:11px;color:var(--mp-muted);margin-bottom:2px}
+.kv .v{font-size:13px;color:var(--mp-text)}
+.kv .full{grid-column:1 / -1}
+/* V字起降场信息操作按钮 */
+.vp-actions{display:flex;gap:10px;margin-top:16px}
+.vp-btn{flex:1;height:44px;border-radius:22px;border:none;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.vp-btn-start{background:rgba(56,212,111,.15);color:var(--mp-green);border:1px solid rgba(56,212,111,.4)}
+.vp-btn-end{background:rgba(255,159,67,.15);color:var(--mp-orange);border:1px solid rgba(255,159,67,.4)}
+.vp-btn:active{opacity:.7}
+/* ---- route screen ---- */
+.od-back-btn{position:absolute;top:14px;left:16px;width:36px;height:36px;border-radius:50%;background:rgba(17,24,38,.92);border:1px solid var(--mp-border);color:var(--mp-text);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;backdrop-filter:blur(8px);z-index:21}
+.od-card{position:absolute;top:12px;left:60px;right:16px;background:rgba(17,24,38,.96);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:6px 14px;z-index:20;backdrop-filter:blur(8px)}
+/* ---- OD input card (screen1) ---- */
+.od-input-card{position:absolute;top:12px;left:16px;right:16px;background:rgba(17,24,38,.96);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:6px 14px;z-index:20;backdrop-filter:blur(8px)}
+.od-input-row{display:flex;align-items:center;gap:10px;padding:10px 0}
+.od-input-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.od-input-dot.start{background:var(--mp-green)}
+.od-input-dot.end{background:var(--mp-orange)}
+.od-input{flex:1;height:32px;background:transparent;border:none;outline:none;color:var(--mp-text);font-size:14px}
+.od-input::placeholder{color:var(--mp-muted)}
+.od-input-clear{width:20px;height:20px;border-radius:50%;background:var(--mp-surface);color:var(--mp-muted);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;opacity:0;transition:opacity .15s}
+.od-input-row:focus-within .od-input-clear,.od-input-clear.visible{opacity:1}
+.od-input-divider{height:1px;background:var(--mp-border);margin-left:20px}
+.od-input-swap{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--mp-surface);border:1px solid var(--mp-border);color:var(--mp-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px}
+.od-input-hint{font-size:12px;color:var(--mp-muted);padding:6px 0 4px;text-align:center}
+/* suggest panel */
+.suggest-panel{position:absolute;top:100px;left:16px;right:16px;background:rgba(17,24,38,.97);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px 14px;z-index:19;backdrop-filter:blur(8px);max-height:360px;overflow-y:auto}
+.suggest-panel::-webkit-scrollbar{display:none}
+.sg-section{margin-bottom:12px}
+.sg-section:last-child{margin-bottom:0}
+.sg-title{font-size:12px;color:var(--mp-muted);margin-bottom:8px}
+.sg-item{display:flex;align-items:center;padding:10px 0;border-bottom:1px solid rgba(42,47,58,.5);cursor:pointer}
+.sg-item:last-child{border-bottom:none}
+.sg-item .sg-name{font-size:13px;color:var(--mp-text);flex:1}
+.sg-item .sg-dist{font-size:11px;color:var(--mp-muted)}
+.od-row{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer}
+.od-row .dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.od-row .dot.start{background:var(--mp-green)}
+.od-row .dot.end{background:var(--mp-orange)}
+.od-row .od-label{font-size:11px;color:var(--mp-muted);width:30px;flex-shrink:0}
+.od-row .od-val{font-size:14px;color:var(--mp-text);flex:1}
+.od-row .od-arrow{color:var(--mp-muted);font-size:12px}
+.od-divider{height:1px;background:var(--mp-border);margin-left:20px}
+.od-swap{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--mp-surface);border:1px solid var(--mp-border);color:var(--mp-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px}
+.route-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--mp-card);border-radius:18px 18px 0 0;border:1px solid var(--mp-border);border-bottom:none;padding:14px 16px 24px;z-index:19;box-shadow:0 -8px 24px rgba(0,0,0,.4);max-height:50%;overflow-y:auto}
+.route-sheet::-webkit-scrollbar{display:none}
+.route-sheet .rs-title{font-size:13px;font-weight:600;color:var(--mp-text);margin-bottom:10px}
+.route-opts-row{display:flex;gap:8px;margin-bottom:10px}
+.route-opt{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 6px;border:1px solid var(--mp-border);border-radius:10px;cursor:pointer;text-align:center;position:relative}
+.route-opt.sel{border-color:var(--mp-blue);background:rgba(47,124,246,.08)}
+.route-opt .ro-badge{width:28px;height:28px;border-radius:8px;background:var(--mp-surface);color:var(--mp-blue);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.route-opt.sel .ro-badge{background:var(--mp-blue);color:#fff}
+.route-opt .ro-main{width:100%}
+.route-opt .ro-name{font-size:12px;color:var(--mp-text);font-weight:600}
+.route-opt .ro-meta{font-size:10px;color:var(--mp-muted);margin-top:3px;line-height:1.4}
+.route-opt .ro-rec{font-size:9px;color:var(--mp-green);border:1px solid rgba(56,212,111,.4);border-radius:4px;padding:1px 4px;margin-left:4px}
+.route-opt .ro-check{position:absolute;top:4px;right:4px;color:var(--mp-blue);font-size:14px;opacity:0}
+.route-opt.sel .ro-check{opacity:1}
+/* ---- departure/arrival time boxes ---- */
+.time-boxes{margin-top:14px;padding-top:12px;border-top:1px solid var(--mp-border);display:flex;align-items:center;gap:10px}
+.time-boxes .tb{flex:1;background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:10px;padding:10px 12px;cursor:pointer;position:relative}
+.time-boxes .tb.active{border-color:var(--mp-blue)}
+.time-boxes .tb .tb-label{font-size:11px;color:var(--mp-muted);margin-bottom:4px;display:flex;align-items:center;gap:4px}
+.time-boxes .tb .tb-label .tb-edit{font-size:10px;color:var(--mp-blue)}
+.time-boxes .tb .tb-val{font-size:15px;font-weight:600;color:var(--mp-text)}
+.time-boxes .tb-arrow{color:var(--mp-muted);font-size:16px;flex-shrink:0}
+/* time picker popup */
+.time-picker-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.time-picker-mask.show{display:flex}
+.time-picker{width:390px;background:var(--mp-card);border-radius:18px 18px 0 0;padding:16px 16px 34px;max-height:60vh}
+.time-picker .tp-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.time-picker .tp-title{font-size:15px;font-weight:600;color:var(--mp-text)}
+.time-picker .tp-close{font-size:20px;color:var(--mp-muted);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--mp-surface)}
+.time-picker .tp-hint{font-size:11px;color:var(--mp-muted);margin-bottom:12px}
+.tp-slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tp-slots .tp-slot{padding:10px 8px;text-align:center;border-radius:8px;border:1px solid var(--mp-border);background:var(--mp-surface);cursor:pointer;font-size:13px;color:var(--mp-text);transition:all .15s}
+.tp-slots .tp-slot:hover{border-color:var(--mp-blue)}
+.tp-slots .tp-slot.sel{background:var(--mp-blue);border-color:var(--mp-blue);color:#fff}
+.tp-slots .tp-slot.disabled{opacity:.35;cursor:not-allowed;pointer-events:none}
+.pt-options{display:flex;flex-direction:column;gap:8px}
+.pt-options .pt-opt{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);cursor:pointer;font-size:14px;color:var(--mp-text);transition:all .15s}
+.pt-options .pt-opt:hover{border-color:var(--mp-blue)}
+.pt-options .pt-opt.sel{background:rgba(47,124,246,.12);border-color:var(--mp-blue);color:var(--mp-blue)}
+.pt-options .pt-opt .pt-check{color:var(--mp-blue);font-size:14px;opacity:0}
+.pt-options .pt-opt.sel .pt-check{opacity:1}
+/* ---- bar chart time estimation ---- */
+.time-chart{margin-top:12px}
+.tc-toggle{display:flex;align-items:center;cursor:pointer;padding:6px 0}
+.tc-toggle .tc-title{font-size:12px;color:var(--mp-muted);flex:1}
+.tc-toggle-arrow{font-size:11px;color:var(--mp-muted);transition:transform .2s}
+.tc-toggle-arrow.open{transform:rotate(90deg)}
+.tc-bars{display:flex;align-items:flex-end;gap:6px;height:60px;padding-bottom:18px;position:relative}
+.tc-bars::after{content:'';position:absolute;bottom:17px;left:0;right:0;height:1px;background:var(--mp-border)}
+.tc-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;cursor:pointer}
+.tc-col .tc-bar{width:100%;border-radius:3px 3px 0 0;transition:height .2s;min-height:4px}
+.tc-col .tc-bar.bar-green{background:var(--mp-green)}
+.tc-col .tc-bar.bar-blue{background:var(--mp-blue)}
+.tc-col .tc-bar.bar-orange{background:var(--mp-orange)}
+.tc-col .tc-bar.bar-red{background:var(--mp-red)}
+.tc-col .tc-label{position:absolute;bottom:-16px;font-size:10px;color:var(--mp-muted);white-space:nowrap}
+.tc-col.active .tc-label{color:var(--mp-blue);font-weight:600}
+.tc-col .tc-val{font-size:9px;color:var(--mp-text);position:absolute;top:-14px;white-space:nowrap}
+.tc-col.active .tc-bar{box-shadow:0 0 6px rgba(47,124,246,.5)}
+/* ---- form screen ---- */
+.screen-form{position:absolute;inset:0;background:var(--mp-bg);z-index:40;display:flex;flex-direction:column}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0;border-bottom:1px solid var(--mp-border)}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px;cursor:pointer}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.form-content{flex:1;overflow-y:auto;padding:14px 16px 24px}
+.form-content::-webkit-scrollbar{display:none}
+.fsection{margin-bottom:18px}
+.fsection-title{font-size:14px;font-weight:600;color:var(--mp-text);margin-bottom:12px;padding-left:4px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:var(--mp-muted);margin-bottom:6px}
+.form-group label .req{color:var(--mp-red)}
+.form-group input{width:100%;height:44px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.form-group .hint{font-size:11px;color:var(--mp-muted);margin-top:4px}
+.select-card{display:flex;align-items:center;padding:12px 14px;background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:10px;cursor:pointer}
+.select-card .sc-label{flex:1;font-size:14px;color:var(--mp-text)}
+.select-card .sc-value{font-size:13px;color:var(--mp-muted)}
+.select-card .sc-arrow{margin-left:8px;color:var(--mp-muted);font-size:12px}
+.chip{display:inline-block;padding:6px 12px;background:rgba(47,124,246,.1);border:1px solid rgba(47,124,246,.3);border-radius:16px;font-size:12px;color:var(--mp-blue);margin:8px 8px 0 0}
+.od-mini{display:flex;align-items:center;gap:8px;background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--mp-text)}
+.od-mini .arr{color:var(--mp-muted)}
+/* collapsible */
+.collapse-head{display:flex;align-items:center;cursor:pointer;font-size:14px;font-weight:600;color:var(--mp-text);padding:10px 0}
+.collapse-head .ch-arrow{margin-left:auto;color:var(--mp-muted);font-size:12px;transition:transform .2s}
+.collapse-head.open .ch-arrow{transform:rotate(90deg)}
+.collapse-body{display:none}
+.collapse-body.open{display:block}
+.form-footer{flex-shrink:0;display:flex;gap:12px;padding:12px 16px calc(12px + var(--mp-safe-b));border-top:1px solid var(--mp-border);background:var(--mp-bg)}
+.fbtn{flex:1;height:48px;border-radius:24px;border:none;font-size:16px;font-weight:600;cursor:pointer}
+.fbtn-cancel{background:var(--mp-surface);border:1px solid var(--mp-border);color:var(--mp-text)}
+.fbtn-submit{background:var(--mp-blue);color:#fff}
+/* 文件上传宫格 */
+.upload-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.up-file,.up-add{position:relative;aspect-ratio:1/1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.up-file{background:var(--mp-surface);border:1px solid var(--mp-border);padding:6px}
+.up-file .up-ico{font-size:30px}
+.up-file .up-name{font-size:11px;color:var(--mp-text);text-align:center;line-height:1.3;word-break:break-all;max-width:100%}
+.up-file .up-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--mp-red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.up-add{background:var(--mp-surface);border:1px dashed var(--mp-border);color:var(--mp-muted);cursor:pointer}
+.up-add .up-plus{font-size:30px;font-weight:300;line-height:1}
+.up-add .up-tip{font-size:11px}
+/* ---- 隔离空域绘制页 ---- */
+.screen-draw{position:absolute;inset:0;background:var(--mp-bg);z-index:45;display:flex;flex-direction:column}
+.draw-map{flex:1;position:relative;overflow:hidden;background:#0d1420}
+.draw-toolbar{position:absolute;bottom:0;left:0;right:0;background:rgba(17,24,38,.96);border-radius:18px 18px 0 0;border:1px solid var(--mp-border);border-bottom:none;padding:16px 16px calc(16px + var(--mp-safe-b));backdrop-filter:blur(10px);z-index:10}
+.draw-tools{display:flex;gap:12px;margin-bottom:14px}
+.draw-toolbar-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.draw-head-title{font-size:13px;color:var(--mp-muted)}
+.draw-head-acts{display:flex;gap:18px}
+.draw-txt-btn{font-size:13px;color:var(--mp-muted);cursor:pointer;line-height:1}
+.draw-txt-btn.primary{color:var(--mp-blue)}
+.draw-txt-btn:active{opacity:.6}
+/* 常飞空域弹窗 */
+.fav-mask{position:absolute;inset:0;background:rgba(0,0,0,.45);z-index:20}
+.fav-sheet{position:absolute;left:0;right:0;bottom:0;background:rgba(17,24,38,.98);border-radius:18px 18px 0 0;border:1px solid var(--mp-border);border-bottom:none;padding:16px 16px calc(16px + var(--mp-safe-b));z-index:21;backdrop-filter:blur(10px);box-shadow:0 -8px 24px rgba(0,0,0,.5)}
+.fav-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.fav-title{font-size:15px;font-weight:600;color:var(--mp-text)}
+.fav-close{font-size:15px;color:var(--mp-muted);cursor:pointer;padding:4px}
+.fav-list{display:flex;flex-direction:column;gap:10px}
+.fav-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;border:1px solid var(--mp-border);background:var(--mp-surface);cursor:pointer;transition:all .15s}
+.fav-item:active{border-color:var(--mp-blue);background:rgba(47,124,246,.1)}
+.fav-item .fi-ico{width:32px;height:32px;flex:none;display:flex;align-items:center;justify-content:center;color:var(--mp-blue)}
+.fav-item .fi-ico svg{width:28px;height:28px}
+.fav-item .fi-body{flex:1;min-width:0}
+.fav-item .fi-name{font-size:14px;color:var(--mp-text);margin-bottom:2px}
+.fav-item .fi-meta{font-size:12px;color:var(--mp-muted)}
+.fav-item .fi-arrow{color:var(--mp-muted);font-size:14px}
+.draw-tool{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 8px;border-radius:12px;border:1px solid var(--mp-border);background:var(--mp-surface);cursor:pointer;transition:all .15s}
+.draw-tool.active{border-color:var(--mp-blue);background:rgba(47,124,246,.1)}
+.draw-tool .dt-icon{width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+.draw-tool .dt-icon svg{width:28px;height:28px}
+.draw-tool .dt-name{font-size:12px;color:var(--mp-muted)}
+.draw-tool.active .dt-name{color:var(--mp-blue)}
+.draw-name-row{display:flex;gap:10px;align-items:center;margin-bottom:14px}
+.draw-name-row input{flex:1;height:42px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.draw-name-row input:focus{border-color:var(--mp-blue)}
+.draw-next-btn{width:100%;height:48px;border-radius:24px;border:none;background:var(--mp-blue);color:#fff;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 6px 16px rgba(47,124,246,.4)}
+/* 绘制区域预览多边形 */
+.draw-polygon{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.draw-polygon polygon,.draw-polygon circle,.draw-polygon path{fill:rgba(47,124,246,.15);stroke:var(--mp-blue);stroke-width:2;stroke-dasharray:6,4}
+.draw-polygon .vertex{fill:var(--mp-blue);stroke:#fff;stroke-width:2}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+
+  <div class="map-container">
+    <!-- 地图贴图 -->
+    <svg class="map-svg" viewBox="0 0 390 700" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="land" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#16202e"/><stop offset="1" stop-color="#0d1622"/>
+        </linearGradient>
+        <linearGradient id="water" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#143247"/><stop offset="1" stop-color="#0f2a3d"/>
+        </linearGradient>
+      </defs>
+      <rect width="390" height="700" fill="url(#land)"/>
+      <!-- 水域 -->
+      <path d="M-20,470 C80,430 150,500 230,470 C320,435 380,500 410,470 L410,720 L-20,720 Z" fill="url(#water)" opacity=".9"/>
+      <!-- 绿地公园 -->
+      <ellipse cx="70" cy="170" rx="70" ry="55" fill="#1d3324" opacity=".7"/>
+      <ellipse cx="310" cy="300" rx="58" ry="48" fill="#1d3324" opacity=".7"/>
+      <!-- 街区 -->
+      <g fill="#1b2636" opacity=".85">
+        <rect x="150" y="120" width="60" height="50" rx="3"/><rect x="220" y="120" width="55" height="50" rx="3"/>
+        <rect x="150" y="185" width="60" height="55" rx="3"/><rect x="220" y="185" width="55" height="55" rx="3"/>
+        <rect x="290" y="120" width="60" height="50" rx="3"/>
+        <rect x="40" y="300" width="60" height="55" rx="3"/><rect x="110" y="300" width="55" height="55" rx="3"/>
+        <rect x="40" y="370" width="60" height="55" rx="3"/><rect x="110" y="370" width="55" height="55" rx="3"/>
+        <rect x="185" y="320" width="60" height="50" rx="3"/>
+      </g>
+      <!-- 主干道 -->
+      <g stroke="#2c3a4e" stroke-width="9" fill="none" stroke-linecap="round">
+        <path d="M0,110 H390"/><path d="M0,290 H390"/><path d="M135,0 V440"/><path d="M280,0 V440"/>
+      </g>
+      <g stroke="#33445c" stroke-width="3.5" fill="none" stroke-linecap="round">
+        <path d="M0,180 H135"/><path d="M0,375 H135"/><path d="M210,110 V290"/><path d="M70,0 V290"/>
+      </g>
+    </svg>
+
+    <!-- 起降场 V 标志（默认与选中） -->
+    <div class="vpad clickable" id="padBin" style="left:135px;top:290px" onclick="clickPad('padBin')"><div class="vmark">V</div><div class="vname">滨江起降场</div></div>
+    <div class="vpad clickable" id="padKj" style="left:280px;top:110px" onclick="clickPad('padKj')"><div class="vmark">V</div><div class="vname">科技园起降场</div></div>
+
+    <!-- 当前位置 -->
+    <div class="vpad" id="meDot" style="left:70px;top:470px;display:none"><div class="vmark" style="background:var(--mp-green);font-size:12px;line-height:30px">&#128663;</div><div class="vname">当前位置</div></div>
+
+    <!-- 航路（screen3） -->
+    <svg class="map-svg" id="routeLines" style="display:none;z-index:5" viewBox="0 0 390 700" preserveAspectRatio="xMidYMid slice">
+      <path id="rl1" d="M70,470 C120,400 90,330 135,290" fill="none" stroke="#2f7cf6" stroke-width="3.5" stroke-dasharray="6,5"/>
+      <path id="rl2" d="M70,470 C40,380 110,330 135,290" fill="none" stroke="#5b6b82" stroke-width="2.5" stroke-dasharray="6,5" opacity=".7"/>
+      <path id="rl3" d="M70,470 C160,460 150,340 135,290" fill="none" stroke="#5b6b82" stroke-width="2.5" stroke-dasharray="6,5" opacity=".7"/>
+    </svg>
+
+    <!-- ===== Screen 1 / 2: 搜索栏 ===== -->
+    <div class="search-bar" id="searchBar" style="display:none">
+      <div class="sbox muted" id="searchBox" onclick="goScreen(2)">&#128269; 搜索起降场、空域名称...</div>
+    </div>
+
+    <!-- ===== Screen 1: 起飞/降落输入卡片 ===== -->
+    <div class="od-input-card" id="odInputCard">
+      <div class="od-input-row">
+        <span class="od-input-dot start"></span>
+        <input class="od-input" id="inputDepart" placeholder="请输入起飞地" onfocus="showSuggest('depart')" oninput="filterSuggest('depart')"/>
+        <span class="od-input-clear" onclick="clearInput('depart')">&#10005;</span>
+      </div>
+      <div class="od-input-divider"></div>
+      <div class="od-input-row">
+        <span class="od-input-dot end"></span>
+        <input class="od-input" id="inputArrive" placeholder="请输入降落地" onfocus="showSuggest('arrive')" oninput="filterSuggest('arrive')"/>
+        <span class="od-input-clear" onclick="clearInput('arrive')">&#10005;</span>
+      </div>
+      <div class="od-input-swap" onclick="swapInputs()">&#8645;</div>
+      <div class="od-input-hint">输入起飞地和降落地极速创建航线飞行计划</div>
+    </div>
+
+    <!-- 搜索建议面板 -->
+    <div class="suggest-panel" id="suggestPanel" style="display:none">
+      <div class="sg-section">
+        <div class="sg-title">&#128205; 附近起降场</div>
+        <div class="sg-item" onclick="selectSuggest('滨江起降场')"><span class="sg-name">滨江起降场</span><span class="sg-dist">1.2km</span></div>
+        <div class="sg-item" onclick="selectSuggest('科技园起降场')"><span class="sg-name">科技园起降场</span><span class="sg-dist">3.5km</span></div>
+        <div class="sg-item" onclick="selectSuggest('南山起降场')"><span class="sg-name">南山起降场</span><span class="sg-dist">5.1km</span></div>
+        <div class="sg-item" onclick="selectSuggest('宝安起降场')"><span class="sg-name">宝安起降场</span><span class="sg-dist">8.3km</span></div>
+      </div>
+      <div class="sg-section">
+        <div class="sg-title">&#128336; 最近使用</div>
+        <div class="sg-item" onclick="selectSuggest('滨江起降场')"><span class="sg-name">滨江起降场</span></div>
+        <div class="sg-item" onclick="selectSuggest('宝安适飞空域B')"><span class="sg-name">宝安适飞空域B</span></div>
+      </div>
+    </div>
+
+    <!-- ===== Screen 2: 起降场详情悬浮层 ===== -->
+    <div class="sheet" id="detailSheet" style="display:none">
+      <div class="grab"></div>
+      <div class="sheet-head"><span class="sh-name">滨江起降场</span><span class="tag tag-green">启用</span></div>
+      <div class="kv">
+        <div><div class="k">面积</div><div class="v">12,800 ㎡</div></div>
+        <div><div class="k">停机位</div><div class="v">8 个</div></div>
+        <div class="full"><div class="k">起降场中心点</div><div class="v">113.9342°E, 22.5031°N</div></div>
+        <div><div class="k">进场点坐标</div><div class="v">113.9358°E, 22.5044°N</div></div>
+        <div><div class="k">离场点坐标</div><div class="v">113.9327°E, 22.5019°N</div></div>
+      </div>
+    </div>
+
+    <!-- ===== 起降场 V 字信息悬浮层 ===== -->
+    <div class="sheet" id="vpadSheet" style="display:none">
+      <div class="grab" onclick="closeVpad()"></div>
+      <div class="sheet-head"><span class="sh-name" id="vpName">滨江起降场</span><span class="tag tag-green" id="vpStatus">启用</span></div>
+      <div class="kv">
+        <div><div class="k">状态</div><div class="v" id="vpStatusText">启用</div></div>
+        <div><div class="k">激活架次</div><div class="v" id="vpSorties">12 架次</div></div>
+      </div>
+      <div class="vp-actions">
+        <button class="vp-btn vp-btn-start" onclick="setOD('start')">&#128205; 设为起点</button>
+        <button class="vp-btn vp-btn-end" onclick="setOD('end')">&#127937; 设为终点</button>
+      </div>
+    </div>
+
+    <!-- ===== Screen 3: 返回按钮 ===== -->
+    <div class="od-back-btn" id="odBackBtn" style="display:none" onclick="goScreen(1)">&#10094;</div>
+
+    <!-- ===== Screen 3: 起终点 + 航路选择 ===== -->
+    <div class="od-card" id="odCard" style="display:none">
+      <div class="od-row" onclick="alert('选择出发地起降场（demo）')"><span class="dot start"></span><span class="od-label">出发</span><span class="od-val" id="odStart">滨江起降场（距您最近）</span><span class="od-arrow">&#10095;</span></div>
+      <div class="od-divider"></div>
+      <div class="od-row" onclick="alert('选择目的地起降场（demo）')"><span class="dot end"></span><span class="od-label">到达</span><span class="od-val" id="odEnd">科技园起降场</span><span class="od-arrow">&#10095;</span></div>
+      <div class="od-swap" onclick="swapOD()">&#8645;</div>
+    </div>
+
+    <!-- 当前位置按钮 -->
+    <div class="gps-btn" id="gpsBtn" style="bottom:76px">&#128204;</div>
+
+    <!-- ===== 底部悬浮操作区 ===== -->
+    <!-- screen1 默认：我的计划入口 -->
+    <div class="map-actions" id="actScreen1">
+      <a href="javascript:void(0)" class="map-btn map-btn-outline" onclick="openDraw()">&#128203; 留空飞行</a>
+      <a href="小程序_审批进度.html" class="map-btn map-btn-outline">&#128203; 我的计划</a>
+    </div>
+    <!-- screen2 到这里去（已弃用，保留兼容） -->
+    <div class="map-actions" id="actScreen2" style="display:none">
+      <div class="map-btn map-btn-primary" onclick="goScreen(3)">&#128205; 到这里去</div>
+    </div>
+
+    <!-- screen3 航路选择悬浮层 + 下一步 -->
+    <div class="route-sheet" id="routeSheet" style="display:none">
+
+      <div class="time-boxes">
+        <div class="tb active" id="tbDepart" onclick="openTimePicker()">
+          <div class="tb-label">出发时间 <span class="tb-edit">修改 &#9998;</span></div>
+          <div class="tb-val" id="tbDepartVal">10:11</div>
+        </div>
+        <span class="tb-arrow">&#8594;</span>
+        <div class="tb" id="tbArrive">
+          <div class="tb-label">预计到达</div>
+          <div class="tb-val" id="tbArriveVal">10:20</div>
+        </div>
+      </div>
+
+      
+      <div class="rs-title">推荐航路（3条）</div>
+      <div class="route-opts-row">
+      <div class="route-opt sel" data-r="1" onclick="pickRoute(1)">
+        <div class="ro-check">&#10003;</div>
+        <div class="ro-badge">A</div>
+        <div class="ro-main"><div class="ro-name">航路一<span class="ro-rec">推荐</span></div><div class="ro-meta">3.2km · 9min</div></div>
+      </div>
+      <div class="route-opt" data-r="2" onclick="pickRoute(2)">
+        <div class="ro-check">&#10003;</div>
+        <div class="ro-badge">B</div>
+        <div class="ro-main"><div class="ro-name">航路二</div><div class="ro-meta">3.6km · 11min</div></div>
+      </div>
+      <div class="route-opt" data-r="3" onclick="pickRoute(3)">
+        <div class="ro-check">&#10003;</div>
+        <div class="ro-badge">C</div>
+        <div class="ro-main"><div class="ro-name">航路三</div><div class="ro-meta">4.1km · 13min</div></div>
+      </div>
+      </div>
+      <!-- 出发/到达时间 + 柱状图预估（默认折叠） -->
+      <div class="time-chart">
+        <div class="tc-toggle" id="tcToggle" onclick="toggleTimeChart()">
+          <span class="tc-title">更多用时预估</span>
+          <span class="tc-toggle-arrow" id="tcArrow">&#10095;</span>
+        </div>
+        <div class="tc-bars" id="tcBarsWrap" style="display:none">
+          <div class="tc-col active" data-tc="1" onclick="pickTime(1)">
+            <span class="tc-val">9min</span>
+            <div class="tc-bar bar-green" style="height:60%"></div>
+            <span class="tc-label">10:11</span>
+          </div>
+          <div class="tc-col" data-tc="2" onclick="pickTime(2)">
+            <span class="tc-val">11min</span>
+            <div class="tc-bar bar-blue" style="height:73%"></div>
+            <span class="tc-label">10:26</span>
+          </div>
+          <div class="tc-col" data-tc="3" onclick="pickTime(3)">
+            <span class="tc-val">13min</span>
+            <div class="tc-bar bar-orange" style="height:87%"></div>
+            <span class="tc-label">10:41</span>
+          </div>
+          <div class="tc-col" data-tc="4" onclick="pickTime(4)">
+            <span class="tc-val">14min</span>
+            <div class="tc-bar bar-red" style="height:93%"></div>
+            <span class="tc-label">10:56</span>
+          </div>
+          <div class="tc-col" data-tc="5" onclick="pickTime(5)">
+            <span class="tc-val">10min</span>
+            <div class="tc-bar bar-green" style="height:67%"></div>
+            <span class="tc-label">11:11</span>
+          </div>
+        </div>
+      </div>
+      <div class="map-btn map-btn-primary" style="margin-top:12px" onclick="goForm()">下一步</div>
+    </div>
+  </div>
+
+  <!-- ===== Screen Draw: 隔离空域绘制 ===== -->
+  <div class="screen-draw" id="screenDraw" style="display:none">
+    <div class="page-header"><span class="back" onclick="closeDraw()">&#10094;</span><div class="title">留空飞行空域绘制</div><div class="placeholder"></div></div>
+    <div class="draw-map">
+      <!-- 地图底图 -->
+      <svg class="map-svg" viewBox="0 0 390 700" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="landDraw" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#16202e"/><stop offset="1" stop-color="#0d1622"/>
+          </linearGradient>
+          <linearGradient id="waterDraw" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#143247"/><stop offset="1" stop-color="#0f2a3d"/>
+          </linearGradient>
+        </defs>
+        <rect width="390" height="700" fill="url(#landDraw)"/>
+        <path d="M-20,470 C80,430 150,500 230,470 C320,435 380,500 410,470 L410,720 L-20,720 Z" fill="url(#waterDraw)" opacity=".9"/>
+        <ellipse cx="70" cy="170" rx="70" ry="55" fill="#1d3324" opacity=".7"/>
+        <ellipse cx="310" cy="300" rx="58" ry="48" fill="#1d3324" opacity=".7"/>
+        <g fill="#1b2636" opacity=".85">
+          <rect x="150" y="120" width="60" height="50" rx="3"/><rect x="220" y="120" width="55" height="50" rx="3"/>
+          <rect x="150" y="185" width="60" height="55" rx="3"/><rect x="220" y="185" width="55" height="55" rx="3"/>
+          <rect x="290" y="120" width="60" height="50" rx="3"/>
+          <rect x="40" y="300" width="60" height="55" rx="3"/><rect x="110" y="300" width="55" height="55" rx="3"/>
+          <rect x="40" y="370" width="60" height="55" rx="3"/><rect x="110" y="370" width="55" height="55" rx="3"/>
+          <rect x="185" y="320" width="60" height="50" rx="3"/>
+        </g>
+        <g stroke="#2c3a4e" stroke-width="9" fill="none" stroke-linecap="round">
+          <path d="M0,110 H390"/><path d="M0,290 H390"/><path d="M135,0 V440"/><path d="M280,0 V440"/>
+        </g>
+        <g stroke="#33445c" stroke-width="3.5" fill="none" stroke-linecap="round">
+          <path d="M0,180 H135"/><path d="M0,375 H135"/><path d="M210,110 V290"/><path d="M70,0 V290"/>
+        </g>
+      </svg>
+
+      <!-- 绘制区域预览（多边形示例） -->
+      <div class="draw-polygon" id="drawPreview">
+        <svg width="200" height="160" viewBox="0 0 200 160">
+          <polygon id="previewPolygon" points="100,10 180,60 160,140 40,140 20,60" />
+          <circle class="vertex" cx="100" cy="10" r="5"/>
+          <circle class="vertex" cx="180" cy="60" r="5"/>
+          <circle class="vertex" cx="160" cy="140" r="5"/>
+          <circle class="vertex" cx="40" cy="140" r="5"/>
+          <circle class="vertex" cx="20" cy="60" r="5"/>
+        </svg>
+      </div>
+
+      <!-- 底部工具栏 -->
+      <div class="draw-toolbar">
+        <div class="draw-toolbar-head">
+          <span class="draw-head-title">绘制方式</span>
+          <div class="draw-head-acts">
+            <span class="draw-txt-btn" onclick="clearDraw()">清空</span>
+            <span class="draw-txt-btn primary" onclick="useFavAirspace()">常飞空域</span>
+          </div>
+        </div>
+        <div class="draw-tools">
+          <div class="draw-tool active" data-shape="polygon" onclick="pickShape('polygon')">
+            <div class="dt-icon"><svg viewBox="0 0 28 28"><polygon points="14,2 26,10 22,25 6,25 2,10" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
+            <span class="dt-name">多边形</span>
+          </div>
+          <div class="draw-tool" data-shape="circle" onclick="pickShape('circle')">
+            <div class="dt-icon"><svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
+            <span class="dt-name">圆形</span>
+          </div>
+          <div class="draw-tool" data-shape="buffer" onclick="pickShape('buffer')">
+            <div class="dt-icon"><svg viewBox="0 0 28 28"><polyline points="4,20 12,8 24,16" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/><polyline points="4,20 12,8 24,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+            <span class="dt-name">线缓冲区</span>
+          </div>
+        </div>
+        <div class="draw-name-row">
+          <input type="text" id="drawAirspaceName" placeholder="请输入空域名称"/>
+        </div>
+        <button class="draw-next-btn" onclick="drawNext()">下一步</button>
+      </div>
+
+      <!-- 常飞空域选择弹窗 -->
+      <div class="fav-mask" id="favMask" style="display:none" onclick="closeFavSheet()"></div>
+      <div class="fav-sheet" id="favSheet" style="display:none">
+        <div class="fav-head">
+          <span class="fav-title">常飞空域</span>
+          <span class="fav-close" onclick="closeFavSheet()">&#10005;</span>
+        </div>
+        <div class="fav-list" id="favList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Screen 4: 表单填写 ===== -->
+  <div class="screen-form" id="screenForm" style="display:none">
+    <div class="page-header"><span class="back" onclick="closeForm()">&#10094;</span><div class="title">填写飞行计划</div><div class="placeholder"></div></div>
+    <div class="form-content">
+
+      <div class="fsection">
+        <div class="fsection-title">航空器</div>
+        <div class="form-group"><span class="chip">DJI Mavic 3</span><span class="chip">DJI Mavic 4</span></div>
+      </div>
+       <div class="fsection">
+        <div class="fsection-title">操控员</div>
+        <div class="form-group"><span class="chip">张三</span></div>
+      </div>
+       <div class="fsection">
+        <div class="fsection-title">计划性质</div>
+        <div class="form-group"><span class="chip">物流运输</span><span class="chip">个人休闲飞</span><span class="chip">更多></span></div>
+      </div>
+      <div class="fsection">
+        <div class="collapse-head" id="moreHead" onclick="toggleMore()">更多信息<span class="ch-arrow">&#10095;</span></div>
+        <div class="collapse-body" id="moreBody">
+          <div class="form-group"><label>计划名称</label><input value="张三-2026-06-08 14:00:00"/></div>
+          <div class="form-group"><label>文件资料（PDF，最多3个）</label>
+            <div class="upload-grid">
+              <div class="up-file"><span class="up-ico">&#128196;</span><span class="up-name">空域批复.pdf</span><span class="up-del">&#10005;</span></div>
+              <div class="up-add"><span class="up-plus">&#43;</span><span class="up-tip">上传PDF</span></div>
+            </div>
+          </div>
+          <div class="form-group"><label>计划类型</label><div class="select-card" onclick="openPlanType()"><span class="sc-label" id="planTypeLabel">一般飞行活动申请</span><span class="sc-arrow">&#10095;</span></div></div>
+         
+        </div>
+      </div>
+    </div>
+    <div class="form-footer">
+      <button class="fbtn fbtn-cancel" onclick="closeForm()">取消</button>
+      <button class="fbtn fbtn-submit" onclick="submitPlan()">提交</button>
+    </div>
+  </div>
+
+  <!-- 时间选择弹窗 -->
+  <div class="time-picker-mask" id="tpMask" onclick="closeTimePicker(event)">
+    <div class="time-picker" onclick="event.stopPropagation()">
+      <div class="tp-head"><span class="tp-title">选择出发时间</span><span class="tp-close" onclick="closeTimePicker()">&#10005;</span></div>
+      <div class="tp-hint">仅支持选择30分钟后的时间点（15分钟为一档）</div>
+      <div class="tp-slots" id="tpSlots"></div>
+    </div>
+  </div>
+
+  <!-- 计划类型选择弹窗 -->
+  <div class="time-picker-mask" id="ptMask" onclick="closePlanType(event)">
+    <div class="time-picker" onclick="event.stopPropagation()">
+      <div class="tp-head"><span class="tp-title">选择计划类型</span><span class="tp-close" onclick="closePlanType()">&#10005;</span></div>
+      <div class="pt-options" id="ptOptions"></div>
+    </div>
+  </div>
+
+  <nav class="tab-bar">
+    <a href="小程序_首页.html"><span class="icon">&#127968;</span>首页</a>
+    <a class="active" href="小程序_办事.html"><span class="icon">&#128221;</span>申报</a>
+    <a href="小程序_查询.html"><span class="icon">&#128240;</span>资讯</a>
+    <a href="小程序_我的.html"><span class="icon">&#128100;</span>我的</a>
+  </nav>
+</div>
+
+<script>
+function hide(){for(var i=0;i<arguments.length;i++){var e=document.getElementById(arguments[i]);if(e)e.style.display='none';}}
+function show(id,disp){var e=document.getElementById(id);if(e)e.style.display=disp||'block';}
+
+var activeFocus=''; // 'depart' or 'arrive'
+
+// ---- 起降场 V 字点击：基础信息 + 设为起点/终点 ----
+var PAD_DATA={
+  padBin:{name:'滨江起降场',status:'启用',statusClass:'tag-green',sorties:12},
+  padKj:{name:'科技园起降场',status:'启用',statusClass:'tag-green',sorties:5}
+};
+var currentPad=null;
+function clickPad(id){
+  var d=PAD_DATA[id];
+  if(!d)return;
+  // 再次点击同一个则收起
+  if(currentPad===id&&document.getElementById('vpadSheet').style.display!=='none'){
+    closeVpad();return;
+  }
+  currentPad=id;
+  // 高亮选中
+  document.getElementById('padBin').classList.remove('sel');
+  document.getElementById('padKj').classList.remove('sel');
+  document.getElementById(id).classList.add('sel');
+  // 填充信息
+  document.getElementById('vpName').textContent=d.name;
+  var st=document.getElementById('vpStatus');
+  st.textContent=d.status;st.className='tag '+d.statusClass;
+  document.getElementById('vpStatusText').textContent=d.status;
+  document.getElementById('vpSorties').textContent=d.sorties+' 架次';
+  // 隐藏会冲突的底部元素，展示信息层
+  hide('suggestPanel','actScreen1','gpsBtn');
+  show('vpadSheet','block');
+}
+function closeVpad(){
+  hide('vpadSheet');
+  if(currentPad)document.getElementById(currentPad).classList.remove('sel');
+  currentPad=null;
+  show('actScreen1','flex');show('gpsBtn','flex');
+}
+function setOD(which){
+  var d=PAD_DATA[currentPad];
+  if(!d)return;
+  if(which==='start'){document.getElementById('inputDepart').value=d.name;}
+  else{document.getElementById('inputArrive').value=d.name;}
+  closeVpad();
+  checkBothFilled();
+}
+
+// ---- 计划类型选择 ----
+var PLAN_TYPES=[
+  {code:'11',name:'一般飞行活动申请'},
+  {code:'12',name:'紧急飞行活动申请'},
+  {code:'13',name:'特别紧急飞行活动申请'},
+  {code:'31',name:'场内飞行活动申请'}
+];
+var selectedPlanType='11'; // 默认选中第一个
+
+function openPlanType(){
+  var box=document.getElementById('ptOptions');
+  var html='';
+  PLAN_TYPES.forEach(function(t){
+    var sel=t.code===selectedPlanType?' sel':'';
+    html+='<div class="pt-opt'+sel+'" onclick="selectPlanType(\''+t.code+'\')"><span>'+t.name+'</span><span class="pt-check">&#10003;</span></div>';
+  });
+  box.innerHTML=html;
+  document.getElementById('ptMask').classList.add('show');
+}
+function selectPlanType(code){
+  selectedPlanType=code;
+  var t=PLAN_TYPES.find(function(x){return x.code===code;});
+  if(t)document.getElementById('planTypeLabel').textContent=t.name;
+  document.getElementById('ptMask').classList.remove('show');
+}
+function closePlanType(e){
+  if(e&&e.target!==e.currentTarget)return;
+  document.getElementById('ptMask').classList.remove('show');
+}
+
+function goScreen(n){
+  // reset overlays
+  hide('quickPanel','detailSheet','odCard','routeSheet','actScreen1','actScreen2','routeLines','meDot','searchBar','suggestPanel','odInputCard','odBackBtn','vpadSheet');
+  document.getElementById('padKj').classList.remove('sel');
+  document.getElementById('padBin').classList.remove('sel');
+  // 显示/隐藏tab-bar
+  document.querySelector('.tab-bar').style.display=(n===3)?'none':'flex';
+  if(n===1){
+    show('odInputCard','block');
+    show('actScreen1','flex');show('gpsBtn','flex');
+  }else if(n===2){
+    // legacy: 搜索到并选中起降场
+    show('searchBar','flex');document.getElementById('searchBox').innerHTML='&#128269; 滨江起降场';
+    document.getElementById('searchBox').className='sbox';
+    document.getElementById('searchBox').setAttribute('onclick','goScreen(1)');
+    document.getElementById('padBin').classList.add('sel');
+    show('detailSheet','block');show('actScreen2','flex');
+  }else if(n===3){
+    // 两地都填好：显示推荐航路
+    show('odBackBtn','flex');show('odCard','block');show('routeSheet','block');show('routeLines','block');show('meDot','flex');
+    document.getElementById('padBin').classList.add('sel');
+    document.getElementById('padKj').classList.add('sel');
+    hide('gpsBtn');
+    // 同步 OD 卡片文字
+    document.getElementById('odStart').textContent=document.getElementById('inputDepart').value||'滨江起降场';
+    document.getElementById('odEnd').textContent=document.getElementById('inputArrive').value||'科技园起降场';
+  }
+}
+
+// ---- 输入建议逻辑 ----
+function showSuggest(type){
+  activeFocus=type;
+  show('suggestPanel','block');
+}
+function hideSuggest(){
+  hide('suggestPanel');
+}
+function filterSuggest(type){
+  activeFocus=type;
+  var input=type==='depart'?document.getElementById('inputDepart'):document.getElementById('inputArrive');
+  var val=input.value.trim();
+  // 简单 demo：显示/隐藏建议面板
+  if(val.length>0){show('suggestPanel','block');}
+  // 显示 clear 按钮
+  var clear=input.parentElement.querySelector('.od-input-clear');
+  if(clear)clear.classList.toggle('visible',val.length>0);
+}
+function selectSuggest(name){
+  var input=activeFocus==='depart'?document.getElementById('inputDepart'):document.getElementById('inputArrive');
+  input.value=name;
+  hide('suggestPanel');
+  // 检查两个都有值时自动进入航路推荐
+  checkBothFilled();
+}
+function clearInput(type){
+  var input=type==='depart'?document.getElementById('inputDepart'):document.getElementById('inputArrive');
+  input.value='';
+  input.focus();
+  var clear=input.parentElement.querySelector('.od-input-clear');
+  if(clear)clear.classList.remove('visible');
+}
+function swapInputs(){
+  var d=document.getElementById('inputDepart'),a=document.getElementById('inputArrive');
+  var t=d.value;d.value=a.value;a.value=t;
+  checkBothFilled();
+}
+function checkBothFilled(){
+  var d=document.getElementById('inputDepart').value.trim();
+  var a=document.getElementById('inputArrive').value.trim();
+  if(d&&a){
+    setTimeout(function(){goScreen(3);},300);
+  }
+}
+// 点击地图空白区域收起建议
+document.addEventListener('click',function(e){
+  var panel=document.getElementById('suggestPanel');
+  var card=document.getElementById('odInputCard');
+  if(panel&&panel.style.display!=='none'){
+    if(!card.contains(e.target)&&!panel.contains(e.target)){
+      hideSuggest();
+    }
+  }
+});
+function swapOD(){
+  var s=document.getElementById('odStart'),e=document.getElementById('odEnd');
+  var t=s.textContent;s.textContent=e.textContent;e.textContent=t;
+}
+function pickRoute(r){
+  var opts=document.querySelectorAll('.route-opt');
+  opts.forEach(function(o){o.classList.toggle('sel',o.getAttribute('data-r')==String(r));});
+  // 高亮对应航路线
+  ['rl1','rl2','rl3'].forEach(function(id,i){
+    var el=document.getElementById(id);
+    var on=(i+1)===r;
+    el.setAttribute('stroke',on?'#2f7cf6':'#5b6b82');
+    el.setAttribute('stroke-width',on?'3.5':'2.5');
+    el.setAttribute('opacity',on?'1':'.7');
+  });
+  document.getElementById('formRoute').textContent=['航路一','航路二','航路三'][r-1];
+}
+function pickTime(n){
+  var cols=document.querySelectorAll('.tc-col');
+  cols.forEach(function(c){c.classList.toggle('active',c.getAttribute('data-tc')==String(n));});
+  document.getElementById('tbDepartVal').textContent=chartData[n-1].time;
+  document.getElementById('tbArriveVal').textContent=chartData[n-1].arrive;
+}
+
+// --- 时间选择器逻辑 ---
+// 模拟当前时间 9:41（与状态栏一致）
+var NOW_H=9,NOW_M=41;
+// 出发基准（默认 now+30min）
+var departH=10,departM=11;
+
+// 柱状图数据：根据出发时间动态生成5个15min间隔
+var chartData=[];
+var barColors=['bar-green','bar-blue','bar-orange','bar-red','bar-green'];
+var barHeights=[60,73,87,93,67];
+var durations=[9,11,13,14,10];
+
+function pad2(n){return n<10?'0'+n:''+n;}
+function addMin(h,m,add){m+=add;while(m>=60){m-=60;h++;}h=h%24;return{h:h,m:m};}
+function fmtTime(h,m){return pad2(h)+':'+pad2(m);}
+
+function buildChart(){
+  chartData=[];
+  for(var i=0;i<5;i++){
+    var t=addMin(departH,departM,i*15);
+    var dur=durations[i];
+    var arr=addMin(t.h,t.m,dur);
+    chartData.push({time:fmtTime(t.h,t.m),arrive:fmtTime(arr.h,arr.m),dur:dur,color:barColors[i],height:barHeights[i]});
+  }
+  // 渲染柱子
+  var html='';
+  for(var i=0;i<5;i++){
+    var d=chartData[i];
+    html+='<div class="tc-col'+(i===0?' active':'')+'" data-tc="'+(i+1)+'" onclick="pickTime('+(i+1)+')">';
+    html+='<span class="tc-val">'+d.dur+'min</span>';
+    html+='<div class="tc-bar '+d.color+'" style="height:'+d.height+'%"></div>';
+    html+='<span class="tc-label">'+d.time+'</span></div>';
+  }
+  document.getElementById('tcBarsWrap').innerHTML=html;
+  // 更新上方时间框
+  document.getElementById('tbDepartVal').textContent=chartData[0].time;
+  document.getElementById('tbArriveVal').textContent=chartData[0].arrive;
+}
+
+function openTimePicker(){
+  // 生成从 now+30min 开始，每15min一个slot，共12个可选项
+  var minT=addMin(NOW_H,NOW_M,30);
+  var slots='';
+  for(var i=0;i<12;i++){
+    var t=addMin(minT.h,minT.m,i*15);
+    var label=fmtTime(t.h,t.m);
+    var isSel=(t.h===departH&&t.m===departM);
+    slots+='<div class="tp-slot'+(isSel?' sel':'')+'" data-th="'+t.h+'" data-tm="'+t.m+'" onclick="selectDepart(this)">'+label+'</div>';
+  }
+  document.getElementById('tpSlots').innerHTML=slots;
+  document.getElementById('tpMask').classList.add('show');
+}
+
+function closeTimePicker(e){
+  if(e&&e.target!==document.getElementById('tpMask'))return;
+  document.getElementById('tpMask').classList.remove('show');
+}
+
+function selectDepart(el){
+  departH=parseInt(el.getAttribute('data-th'));
+  departM=parseInt(el.getAttribute('data-tm'));
+  // 重新生成柱状图
+  buildChart();
+  closeTimePicker();
+}
+
+// 初始化柱状图
+buildChart();
+
+// ---- 更多用时预估 折叠/展开 ----
+function toggleTimeChart(){
+  var wrap=document.getElementById('tcBarsWrap');
+  var arrow=document.getElementById('tcArrow');
+  if(wrap.style.display==='none'){
+    wrap.style.display='flex';
+    arrow.classList.add('open');
+  }else{
+    wrap.style.display='none';
+    arrow.classList.remove('open');
+  }
+}
+
+function goForm(){
+  var params=new URLSearchParams(window.location.search);
+  if(params.get('from')==='edit'){
+    location.href='小程序_计划编辑.html';
+  }else{
+    show('screenForm','flex');
+  }
+}
+function closeForm(){hide('screenForm');}
+function toggleMore(){
+  document.getElementById('moreHead').classList.toggle('open');
+  document.getElementById('moreBody').classList.toggle('open');
+}
+function submitPlan(){
+  alert('已提交，进入PC端飞行计划审批流程');
+  location.href='小程序_审批进度.html';
+}
+// 默认 screen1，从编辑页进来时直接到 screen3（航路选择）
+var _params=new URLSearchParams(window.location.search);
+if(_params.get('from')==='edit'){
+  document.getElementById('inputDepart').value='滨江起降场';
+  document.getElementById('inputArrive').value='科技园起降场';
+  goScreen(3);
+}else{
+  goScreen(1);
+}
+
+// ---- 隔离空域绘制逻辑 ----
+function openDraw(){
+  show('screenDraw','flex');
+  document.querySelector('.tab-bar').style.display='none';
+}
+function closeDraw(){
+  hide('screenDraw');
+  document.querySelector('.tab-bar').style.display='flex';
+}
+function pickShape(shape){
+  var tools=document.querySelectorAll('.draw-tool');
+  tools.forEach(function(t){t.classList.toggle('active',t.getAttribute('data-shape')===shape);});
+  // 切换预览形状
+  var preview=document.getElementById('drawPreview');
+  preview.innerHTML=shapeSvg(shape);
+}
+// 各形状预览 SVG
+function shapeSvg(shape){
+  if(shape==='circle'){
+    return '<svg width="200" height="160" viewBox="0 0 200 160"><circle cx="100" cy="80" r="65" /><circle class="vertex" cx="100" cy="80" r="5"/><circle class="vertex" cx="165" cy="80" r="5"/></svg>';
+  }else if(shape==='buffer'){
+    return '<svg width="240" height="160" viewBox="0 0 240 160"><polyline points="20,120 90,50 150,90 220,40" fill="none" stroke="var(--mp-blue)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".18"/><polyline points="20,120 90,50 150,90 220,40" fill="none" stroke="var(--mp-blue)" stroke-width="2" stroke-dasharray="6,4" stroke-linecap="round" stroke-linejoin="round"/><circle class="vertex" cx="20" cy="120" r="5"/><circle class="vertex" cx="90" cy="50" r="5"/><circle class="vertex" cx="150" cy="90" r="5"/><circle class="vertex" cx="220" cy="40" r="5"/></svg>';
+  }
+  // polygon 默认
+  return '<svg width="200" height="160" viewBox="0 0 200 160"><polygon points="100,10 180,60 160,140 40,140 20,60" /><circle class="vertex" cx="100" cy="10" r="5"/><circle class="vertex" cx="180" cy="60" r="5"/><circle class="vertex" cx="160" cy="140" r="5"/><circle class="vertex" cx="40" cy="140" r="5"/><circle class="vertex" cx="20" cy="60" r="5"/></svg>';
+}
+// 工具栏小图标
+function shapeIcon(shape){
+  if(shape==='circle')return '<svg viewBox="0 0 28 28"><circle cx="14" cy="14" r="11" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+  if(shape==='buffer')return '<svg viewBox="0 0 28 28"><polyline points="4,20 12,8 24,16" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity=".3"/><polyline points="4,20 12,8 24,16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  return '<svg viewBox="0 0 28 28"><polygon points="14,2 26,10 22,25 6,25 2,10" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+}
+var SHAPE_LABEL={polygon:'多边形',circle:'圆形',buffer:'线缓冲区'};
+// 常飞空域示例数据
+var FAV_AIRSPACES=[
+  {name:'宝安适飞空域B',shape:'polygon',meta:'多边形 · 高度 0-120m'},
+  {name:'前海物流通道',shape:'buffer',meta:'线缓冲区 · 宽 200m'},
+  {name:'西丽巡检环线',shape:'circle',meta:'圆形 · 半径 500m'},
+  {name:'大铲湾港区A',shape:'polygon',meta:'多边形 · 高度 0-90m'},
+  {name:'机场北作业区',shape:'buffer',meta:'线缓冲区 · 宽 150m'}
+];
+function clearDraw(){
+  // 恢复到初始化状态
+  document.getElementById('drawAirspaceName').value='';
+  pickShape('polygon');
+  closeFavSheet();
+}
+function useFavAirspace(){
+  var list=document.getElementById('favList');
+  list.innerHTML=FAV_AIRSPACES.map(function(f,i){
+    return '<div class="fav-item" onclick="selectFav('+i+')">'
+      +'<div class="fi-ico">'+shapeIcon(f.shape)+'</div>'
+      +'<div class="fi-body"><div class="fi-name">'+f.name+'</div><div class="fi-meta">'+f.meta+'</div></div></div>';
+  }).join('');
+  show('favMask','block');show('favSheet','block');
+}
+function closeFavSheet(){
+  hide('favMask','favSheet');
+}
+function selectFav(i){
+  var f=FAV_AIRSPACES[i];
+  // 地图回显形状 + 名称回显
+  pickShape(f.shape);
+  document.getElementById('drawAirspaceName').value=f.name;
+  closeFavSheet();
+}
+function drawNext(){
+  var name=document.getElementById('drawAirspaceName').value.trim();
+  if(!name){
+    document.getElementById('drawAirspaceName').style.borderColor='var(--mp-red)';
+    document.getElementById('drawAirspaceName').setAttribute('placeholder','请输入空域名称后继续');
+    setTimeout(function(){document.getElementById('drawAirspaceName').style.borderColor='';document.getElementById('drawAirspaceName').setAttribute('placeholder','请输入空域名称');},2000);
+    return;
+  }
+  // 进入飞行计划填写表单
+  hide('screenDraw');
+  show('screenForm','flex');
+}
+</script>
+</body>
+</html>

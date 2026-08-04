@@ -1,0 +1,72 @@
+# ============================================================
+# 飞行计划模块 - 参数化测试数据
+# ============================================================
+
+# --- 起降场搜索 ---
+airport_search_cases:
+  - keyword: "滨江"
+    expected_min_results: 1
+    description: "搜索'滨江'起降场"
+
+  - keyword: "科技园"
+    expected_min_results: 1
+    description: "搜索'科技园'起降场"
+
+  - keyword: "XYZ不存在"
+    expected_min_results: 0
+    description: "搜索不存在的起降场"
+
+# --- 飞行计划创建 ---
+flight_plan_cases:
+  - departure: "滨江起降场"
+    arrival: "科技园起降场"
+    plan_name: "自动化测试-航线飞行-A"
+    aircraft_index: 0
+    pilot_index: 0
+    description: "正常航线飞行计划"
+
+  - departure: "滨江起降场"
+    arrival: "科技园起降场"
+    plan_name: "自动化测试-航线飞行-B"
+    aircraft_index: 1
+    pilot_index: 0
+    description: "选择第2架航空器"
+
+# --- 空域类型 ---
+airspace_type_cases:
+  - airspace_name: "测试隔离空域A"
+    shape: "polygon"
+    description: "多边形绘制空域"
+
+  - airspace_name: "测试隔离空域B"
+    shape: "circle"
+    description: "圆形绘制空域"
+
+  - airspace_name: "测试隔离空域C"
+    shape: "buffer"
+    description: "线缓冲区绘制空域"
+
+# --- 计划状态筛选 ---
+plan_status_filter_cases:
+  - status: "全部"
+    description: "查看所有计划"
+
+  - status: "审批中"
+    description: "查看审批中的计划"
+
+  - status: "已通过"
+    description: "查看已通过的计计划"
+
+  - status: "已驳回"
+    description: "查看已驳回的计划"
+
+# --- 离线场景 ---
+offline_cases:
+  - scenario: "填写中突然断网"
+    expected_behavior: "数据自动暂存到本地"
+
+  - scenario: "断网后恢复网络"
+    expected_behavior: "提示用户确认后手动提交"
+
+  - scenario: "断网时关闭APP再打开"
+    expected_behavior: "暂存数据仍在本地"

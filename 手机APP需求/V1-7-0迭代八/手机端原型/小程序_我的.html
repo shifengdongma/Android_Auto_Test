@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>我的 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-tab-h:56px;--mp-status-h:44px;--mp-safe-b:34px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.content{flex:1;overflow-y:auto}
+.content::-webkit-scrollbar{display:none}
+.tab-bar{height:calc(var(--mp-tab-h) + var(--mp-safe-b));background:var(--mp-nav);border-top:1px solid var(--mp-border);display:flex;align-items:flex-start;padding-top:8px;flex-shrink:0}
+.tab-bar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--mp-muted);font-size:10px}
+.tab-bar a.active{color:var(--mp-blue)}
+.tab-bar a .icon{font-size:22px;height:26px;display:flex;align-items:center;justify-content:center}
+.profile-header{padding:24px 16px;display:flex;align-items:center;gap:14px}
+.avatar{width:56px;height:56px;border-radius:50%;background:var(--mp-blue);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff}
+.profile-info h3{font-size:17px;color:var(--mp-text);margin-bottom:4px}
+.profile-info p{font-size:13px;color:var(--mp-muted)}
+.score-card{margin:0 16px 16px;background:linear-gradient(135deg,#1a2a4a,#0f1a30);border-radius:var(--mp-radius);border:1px solid var(--mp-border);padding:16px;display:flex;align-items:center;justify-content:space-between}
+.score-card .score{font-size:32px;font-weight:700;color:var(--mp-green)}
+.score-card .label{font-size:12px;color:var(--mp-muted);margin-top:4px}
+.score-card .level{padding:4px 10px;background:rgba(56,212,111,.15);border-radius:10px;font-size:12px;color:var(--mp-green)}
+.menu-section{padding:0 16px;margin-bottom:16px}
+.menu-section .section-title{font-size:13px;color:var(--mp-muted);margin-bottom:8px;padding-left:4px}
+.menu-item{display:flex;align-items:center;padding:14px;background:var(--mp-card);border:1px solid var(--mp-border);text-decoration:none;color:var(--mp-text);font-size:14px}
+.menu-item:first-of-type{border-radius:var(--mp-radius) var(--mp-radius) 0 0}
+.menu-item:last-of-type{border-radius:0 0 var(--mp-radius) var(--mp-radius)}
+.menu-item:only-of-type,.menu-section .menu-item:first-of-type:last-of-type{border-radius:var(--mp-radius)}
+.menu-item+.menu-item{border-top:none}
+.menu-item .mi-icon{width:28px;font-size:18px;text-align:center;margin-right:10px}
+.menu-item .mi-label{flex:1}
+.menu-item .mi-arrow{color:var(--mp-muted);font-size:14px}
+.menu-item .mi-badge{background:var(--mp-red);color:#fff;font-size:10px;padding:2px 6px;border-radius:8px;margin-right:8px}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="content">
+    <div class="profile-header">
+      <div class="avatar">&#128100;</div>
+      <div class="profile-info"><h3>胡利平</h3><p>深圳市无人机科技有限公司</p></div>
+    </div>
+    <a href="小程序_信誉明细.html" class="score-card" style="text-decoration:none">
+      <div><div class="score">600</div><div class="label">信誉积分</div></div>
+      <div class="level">良好</div>
+    </a>
+    <div class="menu-section">
+      <a href="#" class="menu-item"><span class="mi-icon">&#8505;</span><span class="mi-label">关于我们</span><span class="mi-arrow">&#10095;</span></a>
+      <a href="小程序_登录.html" class="menu-item"><span class="mi-icon">&#10140;</span><span class="mi-label" style="color:var(--mp-red)">退出登录</span><span class="mi-arrow">&#10095;</span></a>
+    </div>
+  </div>
+  <nav class="tab-bar">
+    <a href="小程序_首页.html"><span class="icon">&#127968;</span>首页</a>
+    <a href="小程序_办事.html"><span class="icon">&#128221;</span>申报</a>
+    <a href="小程序_查询.html"><span class="icon">&#128240;</span>资讯</a>
+    <a class="active" href="小程序_我的.html"><span class="icon">&#128100;</span>我的</a>
+  </nav>
+</div>
+</body>
+</html>

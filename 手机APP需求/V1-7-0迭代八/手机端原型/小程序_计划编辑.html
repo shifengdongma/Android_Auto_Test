@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>编辑计划 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px;--mp-safe-b:34px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0;border-bottom:1px solid var(--mp-border)}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px;cursor:pointer}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.form-content{flex:1;overflow-y:auto;padding:14px 16px 24px}
+.form-content::-webkit-scrollbar{display:none}
+/* 驳回提示 */
+.reject-tip{background:rgba(255,106,106,.08);border:1px solid rgba(255,106,106,.25);border-radius:var(--mp-radius);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--mp-red);line-height:1.5}
+/* 区块 */
+.fsection{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:14px;margin-bottom:14px}
+.fsection-title{font-size:14px;font-weight:600;color:var(--mp-text);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.fsection-title .bar{width:3px;height:14px;background:var(--mp-blue);border-radius:2px}
+/* 航路展示（只读） */
+.route-line{display:flex;align-items:flex-start;gap:10px}
+.route-line .rl-track{display:flex;flex-direction:column;align-items:center;padding-top:4px}
+.route-line .rl-track .dot{width:10px;height:10px;border-radius:50%}
+.route-line .rl-track .dot.start{background:var(--mp-green)}
+.route-line .rl-track .dot.end{background:var(--mp-orange)}
+.route-line .rl-track .vline{width:2px;flex:1;min-height:26px;background:var(--mp-border);margin:3px 0}
+.route-line .rl-points{flex:1}
+.route-line .rl-points .pt{font-size:14px;color:var(--mp-text);line-height:18px}
+.route-line .rl-points .pt-label{font-size:11px;color:var(--mp-muted);margin-bottom:2px}
+.route-line .rl-points .pt-gap{height:18px}
+.route-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--mp-border)}
+.route-meta .chip{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;background:rgba(47,124,246,.1);border:1px solid rgba(47,124,246,.3);border-radius:14px;font-size:12px;color:var(--mp-blue)}
+.route-meta .chip.plain{background:var(--mp-surface);border-color:var(--mp-border);color:var(--mp-muted)}
+/* 表单 */
+.form-group{margin-bottom:14px}
+.form-group:last-child{margin-bottom:0}
+.form-group label{display:block;font-size:13px;color:var(--mp-muted);margin-bottom:6px}
+.form-group label .req{color:var(--mp-red)}
+.form-group input{width:100%;height:44px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.form-group input:focus{border-color:var(--mp-blue)}
+.select-card{display:flex;align-items:center;padding:12px 14px;background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:10px;cursor:pointer}
+.select-card .sc-label{flex:1;font-size:14px;color:var(--mp-text)}
+.select-card .sc-arrow{margin-left:8px;color:var(--mp-muted);font-size:12px}
+.chip-val{display:inline-block;padding:6px 12px;background:rgba(47,124,246,.1);border:1px solid rgba(47,124,246,.3);border-radius:16px;font-size:12px;color:var(--mp-blue);margin-top:8px}
+/* 多选（航空器 / 操控员） */
+.multi-select{display:flex;flex-wrap:wrap;gap:8px}
+.multi-select .ms-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 10px 8px 12px;background:rgba(47,124,246,.1);border:1px solid rgba(47,124,246,.3);border-radius:10px;font-size:13px;color:var(--mp-text)}
+.multi-select .ms-chip .ms-del{width:16px;height:16px;border-radius:50%;background:rgba(255,255,255,.12);color:var(--mp-muted);font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.multi-select .ms-chip .ms-del:hover{background:var(--mp-red);color:#fff}
+.multi-select .ms-add{display:inline-flex;align-items:center;gap:4px;padding:8px 12px;background:var(--mp-surface);border:1px dashed var(--mp-border);border-radius:10px;font-size:13px;color:var(--mp-blue);cursor:pointer}
+/* 选择弹窗 */
+.picker-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.picker-mask.show{display:flex}
+.picker{width:390px;background:var(--mp-card);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + var(--mp-safe-b));max-height:70vh;display:flex;flex-direction:column}
+.picker .pk-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.picker .pk-title{font-size:15px;font-weight:600;color:var(--mp-text)}
+.picker .pk-close{font-size:20px;color:var(--mp-muted);cursor:pointer;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:var(--mp-surface)}
+.picker .pk-list{overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.picker .pk-list::-webkit-scrollbar{display:none}
+.picker .pk-opt{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);cursor:pointer;font-size:14px;color:var(--mp-text)}
+.picker .pk-opt.sel{background:rgba(47,124,246,.12);border-color:var(--mp-blue);color:var(--mp-blue)}
+.picker .pk-opt .pk-check{color:var(--mp-blue);font-size:14px;opacity:0}
+.picker .pk-opt.sel .pk-check{opacity:1}
+.picker .pk-done{margin-top:14px;height:44px;border-radius:22px;border:none;background:var(--mp-blue);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+/* 文件 */
+.upload-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.up-file,.up-add{position:relative;aspect-ratio:1/1;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.up-file{background:var(--mp-surface);border:1px solid var(--mp-border);padding:6px}
+.up-file .up-ico{font-size:30px}
+.up-file .up-name{font-size:11px;color:var(--mp-text);text-align:center;line-height:1.3;word-break:break-all}
+.up-file .up-del{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--mp-red);color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.up-add{background:var(--mp-surface);border:1px dashed var(--mp-border);color:var(--mp-muted);cursor:pointer}
+.up-add .up-plus{font-size:30px;font-weight:300;line-height:1}
+.up-add .up-tip{font-size:11px}
+/* 底部按钮 */
+.form-footer{flex-shrink:0;display:flex;gap:12px;padding:12px 16px calc(12px + var(--mp-safe-b));border-top:1px solid var(--mp-border);background:var(--mp-bg)}
+.fbtn{flex:1;height:48px;border-radius:24px;border:none;font-size:16px;font-weight:600;cursor:pointer}
+.fbtn-cancel{background:var(--mp-surface);border:1px solid var(--mp-border);color:var(--mp-text)}
+.fbtn-submit{background:var(--mp-blue);color:#fff}
+/* toast */
+.toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:999;pointer-events:none;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><a class="back" href="小程序_审批进度.html">&#10094;</a><div class="title">编辑计划</div><div class="placeholder"></div></div>
+  <div class="form-content">
+
+    <!-- 驳回原因提示 -->
+    <div class="reject-tip">&#9888; 驳回原因：空域时段冲突，请调整执飞时段后重新提交。</div>
+
+    <!-- 航路（可点击修改） -->
+    <div class="fsection" style="cursor:pointer" onclick="location.href='小程序_办事.html?from=edit'">
+      <div class="fsection-title"><span class="bar"></span>航路 <span style="font-size:12px;color:var(--mp-blue);font-weight:400;margin-left:auto">修改 &#10095;</span></div>
+      <div class="route-line">
+        <div class="rl-track">
+          <span class="dot start"></span>
+          <span class="vline"></span>
+          <span class="dot end"></span>
+        </div>
+        <div class="rl-points">
+          <div class="pt-label">出发</div>
+          <div class="pt">龙华起降场</div>
+          <div class="pt-gap"></div>
+          <div class="pt-label">到达</div>
+          <div class="pt">观澜起降场</div>
+        </div>
+      </div>
+      
+    </div>
+
+    <!-- 可编辑字段 -->
+    <div class="fsection">
+      <div class="fsection-title"><span class="bar"></span>执飞时段 <span style="color:var(--mp-red);font-size:12px;font-weight:400">*</span></div>
+      <div class="form-group">
+        <div class="select-card">
+          <span class="sc-label">2026-06-09 08:00 ~ 10:00</span>
+          <span class="sc-arrow">&#10095;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fsection">
+      <div class="fsection-title"><span class="bar"></span>执飞信息</div>
+      <div class="form-group">
+        <label>航空器 <span class="req">*</span></label>
+        <div class="multi-select" id="aircraftBox"></div>
+      </div>
+      <div class="form-group">
+        <label>操控员 <span class="req">*</span></label>
+        <div class="multi-select" id="pilotBox"></div>
+      </div>
+      
+      <div class="form-group">
+        <label>计划性质</label>
+        <div class="select-card">
+          <span class="sc-label">巡检航拍</span>
+          <span class="sc-arrow">&#10095;</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fsection">
+      <div class="fsection-title"><span class="bar"></span>更多信息</div>
+      <div class="form-group">
+        <label>计划名称</label>
+        <input value="李四-2026-06-09 08:00:00"/>
+      </div>
+      <div class="form-group">
+        <label>文件资料（PDF，最多3个）</label>
+        <div class="upload-grid">
+          <div class="up-file"><span class="up-ico">&#128196;</span><span class="up-name">空域批复.pdf</span><span class="up-del">&#10005;</span></div>
+          <div class="up-add"><span class="up-plus">&#43;</span><span class="up-tip">上传PDF</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="form-footer">
+    <button class="fbtn fbtn-cancel" onclick="location.href='小程序_审批进度.html'">取消</button>
+    <button class="fbtn fbtn-submit" onclick="submitEdit()">重新提交</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- 多选弹窗 -->
+<div class="picker-mask" id="pickerMask" onclick="closePicker(event)">
+  <div class="picker" onclick="event.stopPropagation()">
+    <div class="pk-head"><span class="pk-title" id="pkTitle">选择</span><span class="pk-close" onclick="closePicker()">&#10005;</span></div>
+    <div class="pk-list" id="pkList"></div>
+    <button class="pk-done" onclick="closePicker()">确定</button>
+  </div>
+</div>
+
+<script>
+// ---- 航空器 / 操控员 多选 ----
+var AIRCRAFTS=['大疆 经纬 M350','DJI Mavic 3','DJI Mavic 4','大疆 经纬 M300 RTK'];
+var PILOTS=['李四','张三','王五','赵六'];
+var selAircrafts=['大疆 经纬 M350'];
+var selPilots=['李四'];
+var pickerCtx=''; // 'aircraft' | 'pilot'
+
+function renderMulti(){
+  document.getElementById('aircraftBox').innerHTML=buildChips(selAircrafts,'aircraft','添加航空器');
+  document.getElementById('pilotBox').innerHTML=buildChips(selPilots,'pilot','添加操控员');
+}
+function buildChips(list,type,addText){
+  var html='';
+  list.forEach(function(name,i){
+    html+='<span class="ms-chip">'+name+'<span class="ms-del" onclick="removeItem(\''+type+'\','+i+')">&#10005;</span></span>';
+  });
+  html+='<span class="ms-add" onclick="openPicker(\''+type+'\')">&#43; '+addText+'</span>';
+  return html;
+}
+function removeItem(type,i){
+  var list=type==='aircraft'?selAircrafts:selPilots;
+  if(list.length<=1){showToast(type==='aircraft'?'至少保留一个航空器':'至少保留一个操控员');return;}
+  list.splice(i,1);
+  renderMulti();
+}
+function openPicker(type){
+  pickerCtx=type;
+  var all=type==='aircraft'?AIRCRAFTS:PILOTS;
+  var sel=type==='aircraft'?selAircrafts:selPilots;
+  document.getElementById('pkTitle').textContent=type==='aircraft'?'选择航空器（可多选）':'选择操控员（可多选）';
+  var html='';
+  all.forEach(function(name){
+    var on=sel.indexOf(name)>-1?' sel':'';
+    html+='<div class="pk-opt'+on+'" onclick="togglePick(this,\''+name.replace(/'/g,"\\'")+'\')"><span>'+name+'</span><span class="pk-check">&#10003;</span></div>';
+  });
+  document.getElementById('pkList').innerHTML=html;
+  document.getElementById('pickerMask').classList.add('show');
+}
+function togglePick(el,name){
+  var list=pickerCtx==='aircraft'?selAircrafts:selPilots;
+  var idx=list.indexOf(name);
+  if(idx>-1){
+    if(list.length<=1){showToast('至少保留一项');return;}
+    list.splice(idx,1);
+    el.classList.remove('sel');
+  }else{
+    list.push(name);
+    el.classList.add('sel');
+  }
+  renderMulti();
+}
+function closePicker(e){
+  if(e&&e.target!==e.currentTarget)return;
+  document.getElementById('pickerMask').classList.remove('show');
+}
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},1500);
+}
+renderMulti();
+
+function submitEdit(){
+  var t=document.getElementById('toast');
+  t.textContent='已重新提交，等待审批';
+  t.classList.add('show');
+  setTimeout(function(){
+    t.classList.remove('show');
+    location.href='小程序_审批进度.html';
+  },1500);
+}
+</script>
+</body>
+</html>

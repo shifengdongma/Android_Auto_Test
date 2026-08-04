@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>告警详情 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px;--mp-safe-b:34px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0;border-bottom:1px solid var(--mp-border)}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px;cursor:pointer}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.content{flex:1;overflow-y:auto;padding:14px 16px 24px}
+.content::-webkit-scrollbar{display:none}
+/* 区块 */
+.section{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:14px;margin-bottom:14px}
+.section-title{font-size:14px;font-weight:600;color:var(--mp-text);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.section-title .bar{width:3px;height:14px;background:var(--mp-blue);border-radius:2px}
+/* 信息行 - 一行一个 */
+.info-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--mp-border)}
+.info-row:last-child{border-bottom:none;padding-bottom:0}
+.info-row:first-child{padding-top:0}
+.info-row .k{font-size:13px;color:var(--mp-muted);flex-shrink:0}
+.info-row .v{font-size:13px;color:var(--mp-text);text-align:right;line-height:1.4;word-break:break-all}
+/* 标签 */
+.tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;vertical-align:middle}
+.tag-red{background:rgba(255,106,106,.15);color:var(--mp-red);border:1px solid rgba(255,106,106,.4)}
+.tag-muted{background:rgba(154,167,187,.15);color:var(--mp-muted);border:1px solid rgba(154,167,187,.3)}
+/* 告警对象卡片 */
+.obj-card{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:8px;padding:10px 12px;margin-bottom:10px}
+.obj-card:last-child{margin-bottom:0}
+.obj-card .obj-name{font-size:13px;font-weight:600;color:var(--mp-text);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.obj-card .obj-name::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--mp-blue)}
+.obj-grid{display:flex;flex-direction:column;gap:0}
+.obj-grid .og-item{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:8px 0;border-bottom:1px solid var(--mp-border)}
+.obj-grid .og-item:last-child{border-bottom:none;padding-bottom:0}
+.obj-grid .og-item:first-child{padding-top:0}
+.obj-grid .og-item .k{font-size:12px;color:var(--mp-muted);flex-shrink:0}
+.obj-grid .og-item .v{font-size:12px;color:var(--mp-text);word-break:break-all;text-align:right}
+.obj-grid .og-item .v.link{color:var(--mp-blue)}
+/* 协调反馈时间线 */
+.timeline{padding-left:12px;border-left:2px solid var(--mp-border)}
+.tl-item{position:relative;padding:0 0 16px 14px}
+.tl-item:last-child{padding-bottom:0}
+.tl-item::before{content:"";position:absolute;left:-18px;top:5px;width:10px;height:10px;border-radius:50%;background:var(--mp-border);border:2px solid var(--mp-card)}
+.tl-item .tl-time{font-size:11px;color:var(--mp-muted);margin-bottom:4px}
+.tl-item .tl-content{background:var(--mp-surface);border:1px solid var(--mp-border);border-radius:8px;padding:8px 10px}
+.tl-item .tl-role{font-size:12px;color:var(--mp-text);display:flex;align-items:center;gap:6px}
+.tl-item .tl-role .tl-tag{font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(47,124,246,.15);color:var(--mp-blue)}
+.tl-item .tl-msg{font-size:12px;color:var(--mp-muted);margin-top:4px;line-height:1.5}
+/* 底部操作栏 */
+.action-bar{flex-shrink:0;padding:10px 16px calc(10px + var(--mp-safe-b));background:var(--mp-nav);border-top:1px solid var(--mp-border)}
+.action-bar .btn-ignore{width:100%;height:46px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);font-size:15px;font-weight:600;border-radius:var(--mp-radius);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.action-bar .btn-ignore:active{background:#1d1d1d}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><a class="back" id="backBtn" href="小程序_首页.html">&#10094;</a><div class="title">告警详情</div><div class="placeholder"></div></div>
+  <div class="content">
+
+    <!-- 基本信息 -->
+    <div class="section">
+      <div class="section-title"><span class="bar"></span>基本信息</div>
+      <div class="info-row"><span class="k">告警ID</span><span class="v">AL_1780972553014193</span></div>
+      <div class="info-row"><span class="k">告警类别</span><span class="v">中期冲突预警</span></div>
+      <div class="info-row"><span class="k">发生时间</span><span class="v">2026-06-09 10:35:53</span></div>
+      <div class="info-row"><span class="k">告警级别</span><span class="v"><span class="tag tag-red">重要</span></span></div>
+      <div class="info-row"><span class="k">处理状态</span><span class="v"><span class="tag tag-muted">已关闭</span></span></div>
+      <div class="info-row"><span class="k">更新时间</span><span class="v">2026-06-09 10:55:53</span></div>
+      <div class="info-row"><span class="k">所在扇区</span><span class="v">suzhou/suzhou01</span></div>
+      <div class="info-row"><span class="k">责任坐席</span><span class="v">yfk监视席位1/K5</span></div>
+      <div class="info-row"><span class="k">告警依据</span><span class="v">预计在10:37:04，航空器之间的水平间隔(米):9 不满足安全纵向间隔(米):650</span></div>
+    </div>
+
+    <!-- 告警对象信息 -->
+    <div class="section">
+      <div class="section-title"><span class="bar"></span>告警对象信息</div>
+      <div class="obj-card">
+        <div class="obj-name">巡检-T40-33</div>
+        <div class="obj-grid">
+          <div class="og-item"><span class="k">识别码</span><span class="v">U5RQF0QH2OEIMLNGAI33</span></div>
+          <div class="og-item"><span class="k">类型</span><span class="v">中型</span></div>
+          <div class="og-item"><span class="k">计划名称</span><span class="v">--</span></div>
+          <div class="og-item"><span class="k">运营人</span><span class="v">yaofukun</span></div>
+          <div class="og-item"><span class="k">联系人</span><span class="v">yaofukun</span></div>
+          <div class="og-item"><span class="k">联系方式</span><span class="v">130****8888</span></div>
+          <div class="og-item"><span class="k">告警位置</span><span class="v link">120.624360,31.358729、150.57 &#128204;</span></div>
+        </div>
+      </div>
+      <div class="obj-card">
+        <div class="obj-name">巡检-T40-08</div>
+        <div class="obj-grid">
+          <div class="og-item"><span class="k">识别码</span><span class="v">U5RQF0QH2OEIMLNGAI72</span></div>
+          <div class="og-item"><span class="k">类型</span><span class="v">中型</span></div>
+          <div class="og-item"><span class="k">计划名称</span><span class="v">--</span></div>
+          <div class="og-item"><span class="k">运营人</span><span class="v">yaofukun</span></div>
+          <div class="og-item"><span class="k">联系人</span><span class="v">yaofukun</span></div>
+          <div class="og-item"><span class="k">联系方式</span><span class="v">130****8888</span></div>
+          <div class="og-item"><span class="k">告警位置</span><span class="v link">120.624446,31.358767、150.03 &#128204;</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 协调反馈信息 -->
+    <div class="section">
+      <div class="section-title"><span class="bar"></span>协调反馈信息</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-time">2026-06-09 10:50:30</div>
+          <div class="tl-content">
+            <div class="tl-role">管制员 <span class="tl-tag">签收</span></div>
+            <div class="tl-msg">已签收告警，正在联系运营人协调处理</div>
+          </div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">2026-06-09 10:55:53</div>
+          <div class="tl-content">
+            <div class="tl-role">管制员 <span class="tl-tag">关闭</span></div>
+            <div class="tl-msg">航空器已调整航线，冲突解除，关闭告警</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <!-- 底部操作栏 -->
+  <div class="action-bar">
+    <button class="btn-ignore" onclick="ignoreAlert()">&#128276; 忽略</button>
+  </div>
+</div>
+<script>
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var from = params.get('from');
+  var backBtn = document.getElementById('backBtn');
+  if(from === 'home'){
+    backBtn.href = '小程序_首页.html';
+  }
+})();
+function ignoreAlert(){
+  alert('该告警已忽略');
+  history.back();
+}
+</script>
+</body>
+</html>

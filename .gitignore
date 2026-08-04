@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Test outputs
+mobile-test-framework/reports/
+mobile-test-framework/logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large binary files (not suitable for git)
+platform-tools/
+手机APP需求/image/
+
+# Claude
+.claude/

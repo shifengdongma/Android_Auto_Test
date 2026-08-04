@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>资讯 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-tab-h:56px;--mp-status-h:44px;--mp-safe-b:34px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.page-header .title{font-size:17px;font-weight:600;color:var(--mp-text)}
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.content::-webkit-scrollbar{display:none}
+.tab-bar{height:calc(var(--mp-tab-h) + var(--mp-safe-b));background:var(--mp-nav);border-top:1px solid var(--mp-border);display:flex;align-items:flex-start;padding-top:8px;flex-shrink:0}
+.tab-bar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--mp-muted);font-size:10px}
+.tab-bar a.active{color:var(--mp-blue)}
+.tab-bar a .icon{font-size:22px;height:26px;display:flex;align-items:center;justify-content:center}
+.sub-tabs{display:flex;padding:0 16px;border-bottom:1px solid var(--mp-border)}
+.sub-tabs .stab{flex:1;text-align:center;padding:12px 0;font-size:14px;color:var(--mp-muted);cursor:pointer;border-bottom:2px solid transparent}
+.sub-tabs .stab.active{color:var(--mp-blue);border-bottom-color:var(--mp-blue)}
+.article-list{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:12px}
+.article-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:14px;cursor:pointer}
+.article-card .a-title{font-size:14px;font-weight:500;color:var(--mp-text);margin-bottom:6px;line-height:1.4}
+.article-card .a-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--mp-muted)}
+.article-card .a-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;background:rgba(47,124,246,.1);color:var(--mp-blue);margin-top:8px}
+.panel{display:none;flex-direction:column;flex:1;overflow:hidden}
+.panel.active{display:flex}
+/* 详情页 */
+.detail-view{position:absolute;inset:0;background:var(--mp-bg);z-index:50;display:none;flex-direction:column}
+.detail-view.show{display:flex}
+.detail-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0;border-bottom:1px solid var(--mp-border)}
+.detail-header .back{color:var(--mp-text);font-size:18px;width:28px;cursor:pointer}
+.detail-header .dh-title{flex:1;text-align:center;font-size:16px;font-weight:600;color:var(--mp-text)}
+.detail-header .dh-share{width:28px;text-align:right;color:var(--mp-muted);font-size:16px;cursor:pointer}
+.detail-body{flex:1;overflow-y:auto;padding:18px 18px 32px}
+.detail-body::-webkit-scrollbar{display:none}
+.dv-title{font-size:19px;font-weight:700;color:var(--mp-text);line-height:1.45;margin-bottom:12px}
+.dv-meta{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:12px;color:var(--mp-muted);padding-bottom:14px;border-bottom:1px solid var(--mp-border);margin-bottom:16px}
+.dv-meta .m-item{display:flex;align-items:center;gap:4px}
+.dv-tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;background:rgba(47,124,246,.12);color:var(--mp-blue)}
+.dv-tag.notice{background:rgba(255,159,67,.12);color:var(--mp-orange)}
+.dv-content{font-size:14px;color:#c8d2e0;line-height:1.9}
+.dv-fields{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:10px;padding:4px 14px;margin-bottom:16px}
+.dv-fields .df-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid var(--mp-border)}
+.dv-fields .df-row:last-child{border-bottom:none}
+.dv-fields .df-row .df-k{font-size:13px;color:var(--mp-muted);flex-shrink:0}
+.dv-fields .df-row .df-v{font-size:13px;color:var(--mp-text);text-align:right;line-height:1.4}.dv-content h4{font-size:15px;font-weight:600;color:var(--mp-text);margin:18px 0 8px}
+.dv-content p{margin-bottom:12px;text-align:justify}
+.dv-content .indent{text-indent:2em}
+.dv-attach{margin-top:20px;border-top:1px solid var(--mp-border);padding-top:14px}
+.dv-attach .at-title{font-size:12px;color:var(--mp-muted);margin-bottom:8px}
+.dv-attach .at-file{display:flex;align-items:center;gap:10px;background:var(--mp-card);border:1px solid var(--mp-border);border-radius:10px;padding:10px 12px;cursor:pointer}
+.dv-attach .at-file .at-ico{font-size:22px}
+.dv-attach .at-file .at-name{flex:1;font-size:13px;color:var(--mp-text)}
+.dv-attach .at-file .at-size{font-size:11px;color:var(--mp-muted)}
+/* 地图影响范围 */
+.dv-map{margin-top:20px;border-top:1px solid var(--mp-border);padding-top:14px}
+.dv-map .mp-title{font-size:12px;color:var(--mp-muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.dv-map .mp-box{position:relative;height:180px;border-radius:10px;overflow:hidden;border:1px solid var(--mp-border);background:#0d1420}
+.dv-map .mp-box svg{position:absolute;inset:0;width:100%;height:100%}
+.dv-map .mp-legend{position:absolute;left:10px;bottom:10px;display:flex;align-items:center;gap:6px;background:rgba(11,15,24,.8);border:1px solid var(--mp-border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--mp-text)}
+.dv-map .mp-legend .swatch{width:12px;height:12px;border-radius:3px}
+.dv-map .mp-expand{position:absolute;right:10px;top:10px;background:rgba(11,15,24,.8);border:1px solid var(--mp-border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--mp-text);cursor:pointer}
+.dv-map .mp-desc{font-size:12px;color:var(--mp-muted);margin-top:8px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><div class="title">资讯</div></div>
+  <div class="sub-tabs">
+    <div class="stab active" onclick="switchPanel(0)">法律法规</div>
+    <div class="stab" onclick="switchPanel(1)">通知公告</div>
+    <div class="stab" onclick="switchPanel(2)">系统公告</div>
+  </div>
+  <div class="content">
+    <div class="panel active" id="p0">
+      <div class="article-list">
+        <div class="article-card" onclick="openDetail('law0')"><div class="a-title">《无人驾驶航空器飞行管理暂行条例》</div><div class="a-meta"><span>国务院令第761号</span><span>2024-01-01</span></div></div>
+        <div class="article-card" onclick="openDetail('law1')"><div class="a-title">《民用无人驾驶航空器运行安全管理规则》(CCAR-92)</div><div class="a-meta"><span>民航局</span><span>2024-01-01</span></div></div>
+        <div class="article-card" onclick="openDetail('law2')"><div class="a-title">《低空飞行服务保障体系建设总体方案》</div><div class="a-meta"><span>国家空管委</span><span>2023-11-15</span></div></div>
+        <div class="article-card" onclick="openDetail('law3')"><div class="a-title">《通用航空飞行管制条例》</div><div class="a-meta"><span>国务院/中央军委</span><span>2003-05-01</span></div></div>
+        <div class="article-card" onclick="openDetail('law4')"><div class="a-title">关于加强无人机实名登记管理的通知</div><div class="a-meta"><span>民航局</span><span>2025-03-20</span></div></div>
+      </div>
+    </div>
+    <div class="panel" id="p1">
+      <div class="article-list">
+        <div class="article-card" onclick="openDetail('note0')"><div class="a-title">关于2026年端午节期间临时空域管控的通知</div><div class="a-meta"><span>空管中心</span><span>2026-05-25</span></div></div>
+        <div class="article-card" onclick="openDetail('note2')"><div class="a-title">新增3处适飞空域开放通知</div><div class="a-meta"><span>空域管理处</span><span>2026-05-20</span></div></div>
+        <div class="article-card" onclick="openDetail('note3')"><div class="a-title">关于调整飞行计划审批时限的通知</div><div class="a-meta"><span>管制中心</span><span>2026-05-15</span></div></div>
+      </div>
+    </div>
+    <div class="panel" id="p2">
+      <div class="article-list">
+        <div class="article-card" onclick="openDetail('note1')"><div class="a-title">系统升级维护公告（2026年5月30日）</div><div class="a-meta"><span>运维中心</span><span>2026-05-24</span></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 详情页 -->
+  <div class="detail-view" id="detailView">
+    <div class="detail-header"><span class="back" onclick="closeDetail()">&#10094;</span><div class="dh-title" id="dvHead">详情</div><span class="dh-share">&#8943;</span></div>
+    <div class="detail-body">
+      <div class="dv-title" id="dvTitle"></div>
+      <div class="dv-meta" id="dvMeta"></div>
+      <div class="dv-fields" id="dvFields"></div>
+      <div class="dv-content" id="dvBody"></div>
+      <div class="dv-attach" id="dvAttach" style="display:none">
+        <div class="at-title">附件</div>
+        <div class="at-file"><span class="at-ico">&#128196;</span><span class="at-name" id="dvFileName"></span><span class="at-size">PDF</span></div>
+      </div>
+      <!-- 地图影响范围 -->
+      <div class="dv-map" id="dvMap" style="display:none">
+        <div class="mp-title">&#128506; 影响范围</div>
+        <div class="mp-box">
+          <svg viewBox="0 0 360 180" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id="qland" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#16202e"/><stop offset="1" stop-color="#0d1622"/></linearGradient>
+            </defs>
+            <rect width="360" height="180" fill="url(#qland)"/>
+            <path d="M-10,120 C70,100 130,140 210,120 C290,102 340,135 370,120 L370,190 L-10,190 Z" fill="#143247" opacity=".8"/>
+            <g stroke="#2c3a4e" stroke-width="6" fill="none" stroke-linecap="round"><path d="M0,60 H360"/><path d="M150,0 V180"/></g>
+            <g stroke="#33445c" stroke-width="2.5" fill="none"><path d="M0,110 H360"/><path d="M250,0 V180"/></g>
+            <g fill="#1b2636" opacity=".85"><rect x="30" y="70" width="40" height="32" rx="2"/><rect x="80" y="70" width="36" height="32" rx="2"/><rect x="170" y="20" width="44" height="30" rx="2"/></g>
+            <!-- 影响范围圈 -->
+            <circle id="qzone" cx="180" cy="95" r="62" fill="rgba(255,159,67,.18)" stroke="#ff9f43" stroke-width="2" stroke-dasharray="6,4"/>
+            <circle id="qcenter" cx="180" cy="95" r="5" fill="#ff9f43"/>
+          </svg>
+          <div class="mp-expand" onclick="alert('打开大图查看（demo）')">&#9974; 查看大图</div>
+          <div class="mp-legend"><span class="swatch" id="qswatch" style="background:rgba(255,159,67,.5);border:1px solid #ff9f43"></span><span id="qlegend">管控区域</span></div>
+        </div>
+        <div class="mp-desc" id="dvMapDesc"></div>
+      </div>
+    </div>
+  </div>
+  <nav class="tab-bar">
+    <a href="小程序_首页.html"><span class="icon">&#127968;</span>首页</a>
+    <a href="小程序_办事.html"><span class="icon">&#128221;</span>申报</a>
+    <a class="active" href="小程序_查询.html"><span class="icon">&#128240;</span>资讯</a>
+    <a href="小程序_我的.html"><span class="icon">&#128100;</span>我的</a>
+  </nav>
+</div>
+<script>
+function switchPanel(i){document.querySelectorAll('.stab').forEach((t,idx)=>t.classList.toggle('active',idx===i));document.querySelectorAll('.panel').forEach((p,idx)=>p.classList.toggle('active',idx===i))}
+
+var ARTICLES={
+  law0:{head:'法律法规',tag:'法规',title:'《无人驾驶航空器飞行管理暂行条例》',source:'国务院、中央军委',no:'国务院令第761号',date:'2024-01-01 ',file:'无人驾驶航空器飞行管理暂行条例.pdf',
+    body:'<p class="indent">第一条 为了规范无人驾驶航空器飞行以及有关活动，促进无人驾驶航空器产业健康有序发展，维护航空安全、公共安全、国家安全，制定本条例。</p><h4>第一章 总则</h4><p class="indent">第二条 在中华人民共和国境内从事无人驾驶航空器飞行以及有关活动，应当遵守本条例。</p><p class="indent">本条例所称无人驾驶航空器，是指没有机载驾驶员、自备动力系统的航空器。</p><h4>第二章 民用无人驾驶航空器及操控员管理</h4><p class="indent">第十条 从事中型、大型民用无人驾驶航空器飞行活动的单位，应当依法取得运营合格证。</p><p class="indent">第十二条 使用民用无人驾驶航空器从事飞行活动的单位和个人，应当依法投保责任保险。</p>'},
+  law1:{head:'法律法规',tag:'规章',title:'《民用无人驾驶航空器运行安全管理规则》(CCAR-92)',source:'中国民用航空局',no:'CCAR-92',date:'2024-01-01 施行',file:'CCAR-92部规章全文.pdf',
+    body:'<p class="indent">本规则旨在对民用无人驾驶航空器的运行安全实施分类分级管理，明确运营人、操控员的资质与责任要求。</p><h4>适用范围</h4><p class="indent">适用于在我国境内运行的微型、小型、中型、大型民用无人驾驶航空器。</p><h4>运行要求</h4><p class="indent">操控员应当持有相应等级的执照或合格证，并在运行前完成飞行计划申报与空域审批。</p>'},
+  law2:{head:'法律法规',tag:'方案',title:'《低空飞行服务保障体系建设总体方案》',source:'国家空管委',no:'',date:'2023-11-15 发布',file:'',
+    body:'<p class="indent">为加快建设覆盖全国的低空飞行服务保障体系，提升低空空域使用效率与飞行安全水平，制定本方案。</p><h4>建设目标</h4><p class="indent">到2027年，初步建成国家、区域、终端三级低空飞行服务保障体系，实现飞行计划、气象、情报、监视等服务的一体化供给。</p>'},
+  law3:{head:'法律法规',tag:'法规',title:'《通用航空飞行管制条例》',source:'国务院、中央军委',no:'',date:'2003-05-01 施行',file:'通用航空飞行管制条例.pdf',
+    body:'<p class="indent">第一条 为了促进通用航空事业的发展，规范通用航空飞行活动，保证飞行安全，制定本条例。</p><p class="indent">第三条 从事通用航空飞行活动，应当遵守国家有关法律、行政法规和飞行管制的规定。</p>'},
+  law4:{head:'法律法规',tag:'通知',title:'关于加强无人机实名登记管理的通知',source:'中国民用航空局',no:'',date:'2025-03-20 发布',file:'',
+    body:'<p class="indent">为强化无人机全生命周期管理，自本通知发布之日起，所有民用无人驾驶航空器须在"无人机实名登记系统"完成实名登记后方可飞行。</p><p class="indent">未实名登记或登记信息不实的，将依法予以处罚。</p>'},
+  note0:{head:'通知公告',tag:'notice',tagtxt:'管控',title:'关于2026年端午节期间临时空域管控的通知',source:'空管中心',no:'',date:'2026-05-25 发布',file:'端午节临时空域管控范围图.pdf',
+    scope:'主城区核心商圈及大型活动场馆周边',effective:'2026-06-08 00:00',expire:'2026-06-10 24:00',
+    zone:{color:'#ff9f43',label:'管控区域',desc:'管控中心点：113.9234°E, 22.5412°N；管控半径约 3 公里，覆盖主城区核心商圈及大型活动场馆周边。'},
+    body:'<p class="indent">为保障2026年端午节期间重点区域低空飞行安全，现就临时空域管控事项通知如下：</p><h4>一、管控时段</h4><p class="indent">2026年6月8日 00:00 至 6月10日 24:00。</p><h4>二、管控区域</h4><p class="indent">主城区核心商圈、重点交通枢纽及大型活动场馆周边半径3公里范围内。</p><h4>三、管控要求</h4><p class="indent">管控时段内，上述区域暂停受理常规飞行计划申报；执行公共安全、应急救援等任务的，须报空管中心专项审批。</p>'},
+  note1:{head:'通知公告',tag:'notice',tagtxt:'公告',title:'系统升级维护公告（2026年5月30日）',source:'运维中心',no:'',date:'2026-05-24 发布',file:'',
+    body:'<p class="indent">为提升系统稳定性，平台将于2026年5月30日 02:00—06:00 进行升级维护。</p><p class="indent">维护期间，飞行计划申报、审批、监视等功能将暂停服务，给您带来不便敬请谅解。</p>'},
+  note2:{head:'通知公告',tag:'notice',tagtxt:'公告',title:'新增3处适飞空域开放通知',source:'空域管理处',no:'',date:'2026-05-20 发布',file:'新增适飞空域坐标清单.pdf',
+    zone:{color:'#38d46f',label:'新增适飞空域',desc:'新增开放滨江、科技园、前海3处适飞空域（绿色区域），各空域限高 120 米，具体边界坐标详见附件。'},
+    body:'<p class="indent">经空域管理处评估，现新增开放滨江、科技园、前海3处适飞空域，即日起可在平台申报相关飞行计划。</p><p class="indent">各空域具体边界坐标及限高要求详见附件。</p>'},
+  note3:{head:'通知公告',tag:'notice',tagtxt:'公告',title:'关于调整飞行计划审批时限的通知',source:'管制中心',no:'',date:'2026-05-15 发布',file:'',
+    body:'<p class="indent">为提升审批效率，自2026年6月1日起，常规飞行计划审批时限由原2小时缩短至30分钟内；隔离空域及特殊任务计划维持人工审批。</p>'}
+};
+
+function openDetail(id){
+  var a=ARTICLES[id];if(!a)return;
+  document.getElementById('dvHead').textContent=a.head;
+  document.getElementById('dvTitle').textContent=a.title;
+  var tagCls=a.tag==='notice'?'dv-tag notice':'dv-tag';
+  var tagTxt=a.tag==='notice'?(a.tagtxt||'公告'):a.tag;
+  var meta='<span class="'+tagCls+'">'+tagTxt+'</span>';
+  meta+='<span class="m-item">&#128193; '+a.source+'</span>';
+  meta+='<span class="m-item">&#128336; '+a.date+'</span>';
+  document.getElementById('dvMeta').innerHTML=meta;
+  // 适用范围 / 生效时间 / 失效时间
+  var scope=a.scope||'全国范围';
+  var effective=a.effective||a.date.replace(/\s*(发布|施行)\s*$/,'');
+  var expire=a.expire||'长期有效';
+  var fields='';
+  fields+='<div class="df-row"><span class="df-k">适用范围</span><span class="df-v">'+scope+'</span></div>';
+  fields+='<div class="df-row"><span class="df-k">生效时间</span><span class="df-v">'+effective+'</span></div>';
+  fields+='<div class="df-row"><span class="df-k">失效时间</span><span class="df-v">'+expire+'</span></div>';
+  document.getElementById('dvFields').innerHTML=fields;
+  document.getElementById('dvBody').innerHTML=a.body;
+  var at=document.getElementById('dvAttach');
+  if(a.file){at.style.display='block';document.getElementById('dvFileName').textContent=a.file;}else{at.style.display='none';}
+  // 地图影响范围
+  var mp=document.getElementById('dvMap');
+  if(a.zone){
+    mp.style.display='block';
+    var c=a.zone.color;
+    var z=document.getElementById('qzone');
+    z.setAttribute('stroke',c);
+    z.setAttribute('fill',hexToRgba(c,.18));
+    document.getElementById('qcenter').setAttribute('fill',c);
+    document.getElementById('qswatch').style.background=hexToRgba(c,.5);
+    document.getElementById('qswatch').style.border='1px solid '+c;
+    document.getElementById('qlegend').textContent=a.zone.label;
+    document.getElementById('dvMapDesc').textContent=a.zone.desc;
+  }else{mp.style.display='none';}
+  document.getElementById('detailView').classList.add('show');
+  document.querySelector('.detail-body').scrollTop=0;
+}
+function hexToRgba(hex,al){var n=parseInt(hex.slice(1),16);return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+al+')';}
+function closeDetail(){document.getElementById('detailView').classList.remove('show');}
+</script>
+</body>
+</html>

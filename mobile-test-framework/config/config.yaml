@@ -1,0 +1,123 @@
+# ============================================================
+# 低空空管自动化系统 - 移动端测试配置
+# ============================================================
+# 配置文件说明:
+#   - 支持多设备多环境切换
+#   - 通过环境变量 TEST_ENV 切换环境 (dev/test/staging)
+#   - 通过环境变量 DEVICE_INDEX 选择设备 (0, 1, 2...)
+# ============================================================
+
+# ---- 当前激活环境 ----
+active_env: test  # dev / test / staging
+
+# ---- 测试模式 ----
+# native: 测试原生APP (需要APK)
+# browser: 测试移动端H5页面 (通过手机Chrome浏览器)
+test_mode: browser
+test_url: "https://dkkgsit-test.testdolphin.com/atc/dashboard"
+
+# ---- Appium服务配置 ----
+appium:
+  server_url: "http://127.0.0.1:4723"
+  # Appium2 默认使用 / 作为base path
+
+# ---- 全局超时配置 (秒) ----
+timeout:
+  implicit_wait: 10          # 隐式等待
+  explicit_wait: 15          # 显式等待
+  page_load: 30              # 页面加载超时
+  command: 60                # 命令执行超时
+  new_command: 120           # 新命令间隔超时
+
+# ---- 截图配置 ----
+screenshot:
+  on_failure: true           # 失败自动截图
+  save_path: "reports/screenshots"
+  format: "png"
+
+# ---- 日志配置 ----
+logging:
+  level: "DEBUG"             # DEBUG / INFO / WARNING / ERROR
+  console_output: true
+  file_output: true
+  log_dir: "logs"
+  max_file_size_mb: 10
+  backup_count: 5
+
+# ---- 多设备配置 ----
+devices:
+  # --- 真机设备 ---
+  - name: "24117RK2CC"           # adb devices -l 查看 device_name
+    platform: "Android"
+    platform_version: "16"        # adb shell getprop ro.build.version.release
+    device_name: "Xiaomi_Redmi"
+    udid: ""                      # 当前设备ID: 438014b9, 留空自动检测
+    app_package: "com.dolphin.atc"
+    app_activity: ".MainActivity"
+    automation_name: "UiAutomator2"
+    no_reset: true            # 不重置APP数据
+    full_reset: false
+    auto_grant_permissions: true  # 自动授予权限
+    new_command_timeout: 120
+    skip_device_initialization: true  # Android 14+ 跳过 hidden_api_policy 设置
+    skip_server_installation: true    # 跳过 Appium 设置重装检查
+    # 以下为后续扩展预留
+    # language/locale 留空使用设备默认设置，避免 Appium 拼接错误
+    # 如需设置: language: "zh", locale: "CN" → Appium 组合为 zh-CN
+
+  # --- 模拟器设备 ---
+  - name: "Emulator_Pixel6"
+    platform: "Android"
+    platform_version: "14"
+    device_name: "emulator-5554"
+    udid: "emulator-5554"
+    app_package: "com.dolphin.atc"
+    app_activity: ".MainActivity"
+    automation_name: "UiAutomator2"
+    no_reset: false
+    full_reset: false
+    auto_grant_permissions: true
+    new_command_timeout: 120
+    avd_name: "Pixel_6_API_34"
+    language: "zh_CN"
+    locale: "CN"
+
+# ---- iOS设备配置 (预留扩展) ----
+ios_devices:
+  - name: "iPhone15_Simulator"
+    platform: "iOS"
+    platform_version: "17.0"
+    device_name: "iPhone 15"
+    udid: ""
+    bundle_id: "com.dolphin.atc"
+    automation_name: "XCUITest"
+    no_reset: true
+    auto_accept_alerts: true
+
+# ---- 测试账号配置 (示例，实际值由测试环境决定) ----
+test_accounts:
+  default:
+    username: "testuser"
+    password: "testpass123"
+    email: "test@dolphin.com"
+  admin:
+    username: "admin"
+    password: "admin123"
+    email: "admin@dolphin.com"
+
+# ---- 重试配置 ----
+retry:
+  max_attempts: 3            # 最大操作重试次数
+  interval_ms: 1000          # 重试间隔(毫秒)
+
+# ---- 环境差异化配置 ----
+environments:
+  dev:
+    app_package: "com.dolphin.atc.dev"
+    app_activity: ".MainActivity"
+  test:
+    app_package: "com.dolphin.atc"
+    app_activity: ".MainActivity"
+  staging:
+    app_package: "com.dolphin.atc.staging"
+    app_activity: ".MainActivity"

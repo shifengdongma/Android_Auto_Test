@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>我的计划 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5);position:relative}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.filter-bar{display:flex;padding:0 16px 12px;flex-shrink:0;position:relative}
+.filter-trigger{display:flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:var(--mp-card);border:1px solid var(--mp-border);cursor:pointer;font-size:13px;color:var(--mp-text)}
+.filter-trigger .ft-arrow{font-size:10px;color:var(--mp-muted);transition:transform .2s}
+.filter-trigger.open .ft-arrow{transform:rotate(180deg)}
+.filter-dropdown{position:absolute;top:100%;left:16px;right:16px;background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:6px 0;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4);display:none}
+.filter-dropdown.show{display:block}
+.fd-item{display:flex;align-items:center;gap:10px;padding:11px 16px;cursor:pointer;transition:background .1s}
+.fd-item:active{background:rgba(47,124,246,.08)}
+.fd-item .fd-check{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--mp-border);display:flex;align-items:center;justify-content:center;font-size:11px;color:transparent;flex-shrink:0;transition:all .15s}
+.fd-item.checked .fd-check{background:var(--mp-blue);border-color:var(--mp-blue);color:#fff}
+.fd-item .fd-label{font-size:14px;color:var(--mp-text)}
+.content{flex:1;overflow-y:auto;padding:0 16px}
+.content::-webkit-scrollbar{display:none}
+.plan-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:14px;margin-bottom:12px}
+.plan-card .pc-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+.plan-card .pc-route{font-size:15px;font-weight:600;color:var(--mp-text);line-height:1.35}
+.plan-card .pc-route .arr{color:var(--mp-muted);margin:0 4px;font-weight:400}
+.plan-card .pc-status{flex-shrink:0;padding:3px 9px;border-radius:8px;font-size:11px;white-space:nowrap}
+.status-pending{background:rgba(47,124,246,.15);color:var(--mp-blue)}
+.status-approved{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.status-rejected{background:rgba(255,106,106,.15);color:var(--mp-red)}
+.status-ready{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.status-flying{background:rgba(255,159,67,.15);color:var(--mp-orange)}
+.status-done{background:rgba(154,167,187,.15);color:var(--mp-muted)}
+.status-cancelled{background:rgba(154,167,187,.15);color:var(--mp-muted)}
+.plan-card .pc-line{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--mp-muted);margin-top:6px}
+.plan-card .pc-line .ico{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.plan-card .pc-line .txt{color:var(--mp-text)}
+.plan-card .pc-line .sep{color:var(--mp-border)}
+.plan-card .pc-reject{margin-top:8px;font-size:12px;color:var(--mp-red);background:rgba(255,106,106,.08);border:1px solid rgba(255,106,106,.25);border-radius:8px;padding:7px 10px}
+.plan-card .pc-actions{margin-top:12px;padding-top:12px;border-top:1px solid var(--mp-border);display:flex;gap:8px;justify-content:flex-end}
+.plan-card .pc-actions .action-btn{padding:6px 14px;border-radius:6px;font-size:12px;border:none;cursor:pointer}
+.action-btn.primary{background:var(--mp-blue);color:#fff}
+.action-btn.outline{background:transparent;border:1px solid var(--mp-border);color:var(--mp-text)}
+.action-btn.warn{background:transparent;border:1px solid var(--mp-orange);color:var(--mp-orange)}
+/* toast */
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);color:#fff;padding:12px 24px;border-radius:8px;font-size:14px;z-index:200;pointer-events:none;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+/* 底部弹窗 */
+.sheet-mask{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:100;display:none;align-items:flex-end;justify-content:center;border-radius:32px;overflow:hidden}
+.sheet-mask.show{display:flex}
+.sheet{width:100%;background:var(--mp-card);border-radius:16px 16px 0 0;padding:20px 20px calc(20px + var(--mp-safe-b, 0px));transform:translateY(100%);transition:transform .3s ease}
+.sheet-mask.show .sheet{transform:translateY(0)}
+.sheet .sheet-bar{width:36px;height:4px;border-radius:2px;background:var(--mp-border);margin:0 auto 16px}
+.sheet .sheet-title{font-size:16px;font-weight:600;color:var(--mp-text);text-align:center;margin-bottom:20px}
+.sheet .sheet-form{display:flex;flex-direction:column;gap:14px}
+.sheet .sf-group{display:flex;flex-direction:column;gap:6px}
+.sheet .sf-group label{font-size:13px;color:var(--mp-muted)}
+.sheet .sf-group input{height:44px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.sheet .sf-group input:focus{border-color:var(--mp-blue)}
+.sheet .sf-group input::placeholder{color:var(--mp-muted)}
+.sheet .sf-group textarea{min-height:80px;border-radius:10px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:10px 14px;font-size:14px;outline:none;resize:none;font-family:inherit;line-height:1.5}
+.sheet .sf-group textarea:focus{border-color:var(--mp-blue)}
+.sheet .sf-group textarea::placeholder{color:var(--mp-muted)}
+.sheet .sheet-actions{display:flex;gap:12px;margin-top:20px}
+.sheet .sheet-actions .s-btn{flex:1;height:44px;border-radius:22px;border:none;font-size:15px;cursor:pointer;font-weight:500}
+.sheet .sheet-actions .s-btn.cancel{background:var(--mp-surface);border:1px solid var(--mp-border);color:var(--mp-text)}
+.sheet .sheet-actions .s-btn.submit{background:var(--mp-blue);color:#fff}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><a class="back" href="小程序_办事.html">&#10094;</a><div class="title">我的计划</div><div class="placeholder"></div></div>
+  <div class="filter-bar" id="filterBar">
+    <div class="filter-trigger" id="filterTrigger" onclick="toggleDropdown()">
+      <span id="filterLabel">全部状态</span>
+      <span class="ft-arrow">&#9662;</span>
+    </div>
+    <div class="filter-dropdown" id="filterDropdown">
+      <div class="fd-item checked" data-filter="all" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">全部</span></div>
+      <div class="fd-item checked" data-filter="pending" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">审批中</span></div>
+      <div class="fd-item checked" data-filter="approved" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">已通过</span></div>
+      <div class="fd-item checked" data-filter="rejected" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">已驳回</span></div>
+      <div class="fd-item checked" data-filter="ready" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">待飞行</span></div>
+      <div class="fd-item checked" data-filter="flying" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">执飞中</span></div>
+      <div class="fd-item checked" data-filter="done" onclick="toggleFilter(this)"><span class="fd-check">&#10003;</span><span class="fd-label">已完成</span></div>
+    </div>
+  </div>
+  <div class="content">
+    <!-- 审批中：查看详情、催办 -->
+    <div class="plan-card" data-status="pending">
+      <div class="pc-header">
+        <div class="pc-route">滨江起降场<span class="arr">&#8594;</span>科技园起降场</div>
+        <span class="pc-status status-pending">审批中</span>
+      </div>
+      <div class="pc-line"><span class="ico">&#128336;</span><span class="txt">2026-06-08 14:00:00 ~ 16:00:00</span></div>
+      <div class="pc-line"><span class="ico">&#9992;</span><span class="txt">DJI Mavic 3</span><span class="sep">|</span><span class="ico">&#128100;</span><span class="txt">张三</span></div>
+      <div class="pc-actions"><button class="action-btn outline" onclick="location.href='小程序_计划详情.html?from=plan'">查看详情</button></div>
+    </div>
+
+    <!-- 已审批（驳回）：查看详情（含驳回原因）、编辑 -->
+    <div class="plan-card" data-status="rejected">
+      <div class="pc-header">
+        <div class="pc-route">龙华起降场<span class="arr">&#8594;</span>观澜起降场</div>
+        <span class="pc-status status-rejected">已审批 · 驳回</span>
+      </div>
+      <div class="pc-line"><span class="ico">&#128336;</span><span class="txt">2026-06-09 08:00:00 ~ 10:00:00</span></div>
+      <div class="pc-line"><span class="ico">&#9992;</span><span class="txt">大疆 经纬 M350</span><span class="sep">|</span><span class="ico">&#128100;</span><span class="txt">李四</span></div>
+      <div class="pc-reject">驳回原因：空域时段冲突，请调整执飞时段后重新提交。</div>
+      <div class="pc-actions"><button class="action-btn outline" onclick="location.href='小程序_计划详情.html?from=plan'">查看详情</button><button class="action-btn primary" onclick="location.href='小程序_计划编辑.html'">编辑</button></div>
+    </div>
+
+    <!-- 待飞行：推延、放飞申请 -->
+    <div class="plan-card" data-status="ready">
+      <div class="pc-header">
+        <div class="pc-route">宝安适飞空域B</div>
+        <span class="pc-status status-ready">待飞行</span>
+      </div>
+      <div class="pc-line"><span class="ico">&#128336;</span><span class="txt">2026-06-08 14:00:00 ~ 16:00:00</span></div>
+      <div class="pc-line"><span class="ico">&#9992;</span><span class="txt">DJI Mavic 3</span><span class="sep">|</span><span class="ico">&#128100;</span><span class="txt">张三</span></div>
+      <div class="pc-actions"><button class="action-btn outline" onclick="cancelPlan(this)">取消</button><button class="action-btn warn" onclick="openSheet('delay')">推延</button><button class="action-btn primary" onclick="openSheet('launch')">放飞申请</button></div>
+    </div>
+
+    <!-- 执飞中：飞行监控 -->
+    <div class="plan-card" data-status="flying">
+      <div class="pc-header">
+        <div class="pc-route">南山起降场<span class="arr">&#8594;</span>前海起降场</div>
+        <span class="pc-status status-flying">执飞中</span>
+      </div>
+      <div class="pc-line"><span class="ico">&#128336;</span><span class="txt">2026-06-08 09:00:00 ~ 11:00:00</span></div>
+      <div class="pc-line"><span class="ico">&#9992;</span><span class="txt">DJI Mavic 3</span><span class="sep">|</span><span class="ico">&#128100;</span><span class="txt">王五</span></div>
+      <div class="pc-actions"><button class="action-btn primary" onclick="location.href='小程序_监视.html'">飞行监控</button></div>
+    </div>
+
+    <!-- 已完成：查看详情 -->
+    <div class="plan-card" data-status="done">
+      <div class="pc-header">
+        <div class="pc-route">福田起降场<span class="arr">&#8594;</span>车公庙起降场</div>
+        <span class="pc-status status-done">已完成</span>
+      </div>
+      <div class="pc-line"><span class="ico">&#128336;</span><span class="txt">2026-06-05 10:00:00 ~ 11:30:00</span></div>
+      <div class="pc-line"><span class="ico">&#9992;</span><span class="txt">大疆 经纬 M350</span><span class="sep">|</span><span class="ico">&#128100;</span><span class="txt">张三</span></div>
+      <div class="pc-actions"><button class="action-btn outline" onclick="location.href='小程序_计划详情.html?from=plan'">查看详情</button></div>
+    </div>
+  </div>
+
+  <!-- 推延弹窗 -->
+  <div class="sheet-mask" id="sheetDelay" onclick="closeSheetOnMask(event,'delay')">
+    <div class="sheet">
+      <div class="sheet-bar"></div>
+      <div class="sheet-title">推延计划</div>
+      <div class="sheet-form">
+        <div class="sf-group"><label>推延开始时间</label><input type="datetime-local" id="delayStart" value="2026-06-08T15:00"/></div>
+        <div class="sf-group"><label>推延结束时间</label><input type="datetime-local" id="delayEnd" value="2026-06-08T17:00"/></div>
+        <div class="sf-group"><label>推延说明</label><textarea id="delayRemark" placeholder="请输入推延说明"></textarea></div>
+      </div>
+      <div class="sheet-actions">
+        <button class="s-btn cancel" onclick="closeSheet('delay')">取消</button>
+        <button class="s-btn submit" onclick="submitDelay()">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 放飞申请弹窗 -->
+  <div class="sheet-mask" id="sheetLaunch" onclick="closeSheetOnMask(event,'launch')">
+    <div class="sheet">
+      <div class="sheet-bar"></div>
+      <div class="sheet-title">放飞申请</div>
+      <div class="sheet-form">
+        <div class="sf-group"><label>预计起飞时间</label><input type="datetime-local" id="launchStart" value="2026-06-08T14:00"/></div>
+        <div class="sf-group"><label>备注说明</label><textarea id="launchRemark" placeholder="请输入备注说明（选填）"></textarea></div>
+      </div>
+      <div class="sheet-actions">
+        <button class="s-btn cancel" onclick="closeSheet('launch')">取消</button>
+        <button class="s-btn submit" onclick="submitLaunch()">提交</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- toast -->
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+function showToast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show');},2000);
+}
+
+// ---- 底部弹窗逻辑 ----
+function openSheet(type){
+  if(type==='delay') document.getElementById('sheetDelay').classList.add('show');
+  if(type==='launch') document.getElementById('sheetLaunch').classList.add('show');
+}
+function closeSheet(type){
+  if(type==='delay') document.getElementById('sheetDelay').classList.remove('show');
+  if(type==='launch') document.getElementById('sheetLaunch').classList.remove('show');
+}
+function closeSheetOnMask(e,type){
+  if(e.target===e.currentTarget) closeSheet(type);
+}
+function submitDelay(){
+  var start=document.getElementById('delayStart').value;
+  var end=document.getElementById('delayEnd').value;
+  var remark=document.getElementById('delayRemark').value.trim();
+  if(!start||!end){showToast('请填写完整时间');return;}
+  if(!remark){showToast('请填写推延说明');return;}
+  closeSheet('delay');
+  showToast('推延申请已提交');
+}
+function submitLaunch(){
+  var start=document.getElementById('launchStart').value;
+  if(!start){showToast('请选择预计起飞时间');return;}
+  closeSheet('launch');
+  showToast('放飞申请已提交，等待审批');
+}
+
+// ---- 取消计划 ----
+function cancelPlan(btn){
+  if(!confirm('确定要取消该飞行计划吗？取消后不可恢复。'))return;
+  var card=btn.closest('.plan-card');
+  if(!card)return;
+  // 状态流转为「已取消」
+  card.setAttribute('data-status','cancelled');
+  var tag=card.querySelector('.pc-status');
+  if(tag){tag.className='pc-status status-cancelled';tag.textContent='已取消';}
+  // 移除操作按钮
+  var actions=card.querySelector('.pc-actions');
+  if(actions) actions.remove();
+  showToast('取消成功');
+}
+
+// ---- 下拉多选筛选逻辑 ----
+var allStatuses=['pending','approved','rejected','ready','flying','done'];
+var statusLabels={pending:'审批中',approved:'已通过',rejected:'已驳回',ready:'待飞行',flying:'执飞中',done:'已完成'};
+var selectedFilters=new Set(allStatuses); // 默认全部选中
+
+function toggleDropdown(){
+  var dd=document.getElementById('filterDropdown');
+  var trigger=document.getElementById('filterTrigger');
+  var isOpen=dd.classList.contains('show');
+  if(isOpen){
+    dd.classList.remove('show');
+    trigger.classList.remove('open');
+  }else{
+    dd.classList.add('show');
+    trigger.classList.add('open');
+  }
+}
+
+// 点击外部关闭下拉
+document.addEventListener('click',function(e){
+  var bar=document.getElementById('filterBar');
+  if(!bar.contains(e.target)){
+    document.getElementById('filterDropdown').classList.remove('show');
+    document.getElementById('filterTrigger').classList.remove('open');
+  }
+});
+
+function toggleFilter(el){
+  var filter=el.getAttribute('data-filter');
+  if(filter==='all'){
+    if(selectedFilters.size===allStatuses.length){
+      // 已全选 → 取消全部
+      selectedFilters.clear();
+    }else{
+      // 未全选 → 全选
+      selectedFilters=new Set(allStatuses);
+    }
+  }else{
+    if(selectedFilters.has(filter)){
+      selectedFilters.delete(filter);
+    }else{
+      selectedFilters.add(filter);
+    }
+  }
+  // 全清空则恢复全部
+  if(selectedFilters.size===0){
+    selectedFilters=new Set(allStatuses);
+  }
+  updateFilterUI();
+  applyFilter();
+}
+
+function updateFilterUI(){
+  var isAll=(selectedFilters.size===allStatuses.length);
+  // 更新下拉列表勾选状态
+  var items=document.querySelectorAll('.fd-item');
+  items.forEach(function(item){
+    var f=item.getAttribute('data-filter');
+    if(f==='all'){
+      item.classList.toggle('checked',isAll);
+    }else{
+      item.classList.toggle('checked',selectedFilters.has(f));
+    }
+  });
+  // 更新触发按钮文字
+  var label=document.getElementById('filterLabel');
+  if(isAll){
+    label.textContent='全部状态';
+  }else{
+    var names=[];
+    allStatuses.forEach(function(s){if(selectedFilters.has(s))names.push(statusLabels[s]);});
+    label.textContent=names.length<=2?names.join('、'):names.slice(0,2).join('、')+'等'+names.length+'项';
+  }
+}
+
+function applyFilter(){
+  var isAll=(selectedFilters.size===allStatuses.length);
+  var cards=document.querySelectorAll('.plan-card');
+  cards.forEach(function(card){
+    var status=card.getAttribute('data-status');
+    card.style.display=(isAll||selectedFilters.has(status))?'block':'none';
+  });
+}
+</script>
+</body>
+</html>

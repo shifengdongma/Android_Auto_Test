@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>信誉统计 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.content{flex:1;overflow-y:auto;padding:16px}
+.content::-webkit-scrollbar{display:none}
+.score-ring{text-align:center;padding:24px 0}
+.ring{width:140px;height:140px;border-radius:50%;border:8px solid var(--mp-border);display:inline-flex;align-items:center;justify-content:center;flex-direction:column;position:relative}
+.ring::before{content:'';position:absolute;inset:-8px;border-radius:50%;border:8px solid transparent;border-top-color:var(--mp-green);border-right-color:var(--mp-green);transform:rotate(-45deg)}
+.ring .score-num{font-size:36px;font-weight:700;color:var(--mp-green)}
+.ring .score-label{font-size:12px;color:var(--mp-muted);margin-top:2px}
+.level-bar{display:flex;margin:16px 0 24px;gap:2px}
+.level-bar .seg{flex:1;height:6px;border-radius:3px}
+.level-bar .seg.red{background:var(--mp-red)}
+.level-bar .seg.orange{background:var(--mp-orange)}
+.level-bar .seg.blue{background:var(--mp-blue)}
+.level-bar .seg.green{background:var(--mp-green)}
+.level-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--mp-muted);margin-top:-18px;margin-bottom:20px;padding:0 2px}
+.section-title{font-size:14px;font-weight:600;color:var(--mp-text);margin:16px 0 10px}
+.rule-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.rule-card .rc-info{flex:1}
+.rule-card .rc-name{font-size:13px;color:var(--mp-text);margin-bottom:2px}
+.rule-card .rc-desc{font-size:11px;color:var(--mp-muted)}
+.rule-card .rc-score{font-size:14px;font-weight:600}
+.rc-score.plus{color:var(--mp-green)}
+.rc-score.minus{color:var(--mp-red)}
+.tip-card{background:rgba(47,124,246,.08);border:1px solid rgba(47,124,246,.2);border-radius:var(--mp-radius);padding:12px 14px;margin-top:16px}
+.tip-card .tc-title{font-size:13px;color:var(--mp-blue);margin-bottom:6px;font-weight:500}
+.tip-card .tc-text{font-size:12px;color:var(--mp-muted);line-height:1.6}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><a class="back" href="小程序_我的.html">&#10094;</a><div class="title">信誉统计</div><div class="placeholder"></div></div>
+  <div class="content">
+    <div class="score-ring"><div class="ring"><span class="score-num">600</span><span class="score-label">良好</span></div></div>
+    <div style="text-align:center;font-size:11px;color:var(--mp-muted);margin-bottom:12px">信誉主体：企业/独立运营人 · 初始分600</div>
+    <div class="level-bar"><div class="seg red"></div><div class="seg orange"></div><div class="seg blue"></div><div class="seg green"></div></div>
+    <div class="level-labels"><span>限制&lt;400</span><span>告警 400-599</span><span>良好 600-799</span><span>优秀 800+</span></div>
+    <div class="section-title">加分项</div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">航空器备案</div><div class="rc-desc">主动备案航空器，最多1次</div></div><span class="rc-score plus">+50</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">操控员备案</div><div class="rc-desc">主动备案操控员，最多1次</div></div><span class="rc-score plus">+50</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">申报飞行计划</div><div class="rc-desc">每次主动申报飞行计划</div></div><span class="rc-score plus">+5/次</span></div>
+    <div class="section-title">扣分项（告警产生后自动扣分，忽略则不扣）</div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">越界飞行</div><div class="rc-desc">越过禁飞/危险/临时空域飞行</div></div><span class="rc-score minus">-30/次</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">偏离航路</div><div class="rc-desc">偏离预设航路飞行</div></div><span class="rc-score minus">-30/次</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name">无计划黑飞</div><div class="rc-desc">未申报飞行计划的飞行</div></div><span class="rc-score minus">-100/次</span></div>
+    <div class="tip-card"><div class="tc-title">如何提高积分？</div><div class="tc-text">1. 完成航空器和操控员备案<br/>2. 每次飞行前主动申报飞行计划<br/>3. 严格按照计划航线飞行，避免越界和超高</div></div>
+  </div>
+</div>
+</body>
+</html>

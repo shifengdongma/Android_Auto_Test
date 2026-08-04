@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>信誉明细 - 低空空管APP</title>
+<style>
+:root{--mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;--mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;--mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;--mp-radius:12px;--mp-status-h:44px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0}
+.page-header .back{color:var(--mp-text);text-decoration:none;font-size:18px;width:24px}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .placeholder{width:24px}
+.content{flex:1;overflow-y:auto;padding:16px}
+.content::-webkit-scrollbar{display:none}
+.score-head{background:linear-gradient(135deg,#1a2a4a,#0f1a30);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.score-head .company{font-size:13px;color:var(--mp-text);font-weight:500}
+.score-head .sub{font-size:11px;color:var(--mp-muted);margin-top:4px}
+.score-head .score{font-size:30px;font-weight:700;color:var(--mp-green);text-align:right}
+.score-head .score-label{font-size:11px;color:var(--mp-muted);text-align:right;margin-top:2px}
+.summary{display:flex;gap:10px;margin-bottom:18px}
+.summary .box{flex:1;background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px 14px;text-align:center}
+.summary .box .num{font-size:18px;font-weight:700}
+.summary .box .num.plus{color:var(--mp-green)}
+.summary .box .num.minus{color:var(--mp-red)}
+.summary .box .t{font-size:11px;color:var(--mp-muted);margin-top:4px}
+.section-title{font-size:14px;font-weight:600;color:var(--mp-text);margin:16px 0 10px;display:flex;align-items:center;gap:6px}
+.section-title .dot{width:8px;height:8px;border-radius:50%}
+.section-title .dot.green{background:var(--mp-green)}
+.section-title .dot.red{background:var(--mp-red)}
+.rule-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+.rule-card .rc-info{flex:1;min-width:0}
+.rule-card .rc-name{font-size:13px;color:var(--mp-text);margin-bottom:2px}
+.rule-card .rc-desc{font-size:11px;color:var(--mp-muted)}
+.rule-card .rc-score{font-size:14px;font-weight:600;margin-left:10px;flex-shrink:0}
+.rc-score.plus{color:var(--mp-green)}
+.rc-score.minus{color:var(--mp-red)}
+.tag{display:inline-block;font-size:10px;padding:1px 6px;border-radius:6px;margin-right:6px;vertical-align:middle}
+.tag.ok{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.tag.bad{background:rgba(255,106,106,.15);color:var(--mp-red)}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+  <div class="page-header"><a class="back" href="小程序_我的.html">&#10094;</a><div class="title">信誉明细</div><div class="placeholder"></div></div>
+  <div class="content">
+    <div class="score-head">
+      <div><div class="company">深圳市无人机科技有限公司</div><div class="sub">信誉主体 · 当前运营公司</div></div>
+      <div><div class="score">600</div><div class="score-label">信誉积分</div></div>
+    </div>
+    <div class="summary">
+      <div class="box"><div class="num plus">+160</div><div class="t">累计加分</div></div>
+      <div class="box"><div class="num minus">-60</div><div class="t">累计扣分</div></div>
+    </div>
+
+    <div class="section-title"><span class="dot green"></span>加分项</div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag ok">备案成功</span>大疆 M300 RTK</div><div class="rc-desc">航空器备案 · 2026-03-12</div></div><span class="rc-score plus">+50</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag ok">备案成功</span>操控员 张三</div><div class="rc-desc">操控员备案 · 2026-03-12</div></div><span class="rc-score plus">+50</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag ok">备案成功</span>操控员 李四</div><div class="rc-desc">操控员备案 · 2026-03-15</div></div><span class="rc-score plus">+50</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag ok">申报成功</span>光明区电力巡检</div><div class="rc-desc">飞行计划 FP20260401 · 2026-04-01</div></div><span class="rc-score plus">+5</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag ok">申报成功</span>大鹏湾航拍测绘</div><div class="rc-desc">飞行计划 FP20260405 · 2026-04-05</div></div><span class="rc-score plus">+5</span></div>
+
+    <div class="section-title"><span class="dot red"></span>扣分项</div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag bad">无计划黑飞</span>大疆 Mavic 3</div><div class="rc-desc">未申报飞行计划起飞 · 2026-05-02</div></div><span class="rc-score minus">-30/次</span></div>
+    <div class="rule-card"><div class="rc-info"><div class="rc-name"><span class="tag bad">偏离航路</span>大疆 M300 RTK</div><div class="rc-desc">偏离预设航路飞行 · 2026-05-18</div></div><span class="rc-score minus">-30/次</span></div>
+    <a href="小程序_信誉统计.html" style="display:block;margin-top:24px;padding:14px;background:var(--mp-blue);border-radius:var(--mp-radius);text-align:center;color:#fff;font-size:14px;font-weight:500;text-decoration:none">积分政策解读</a>
+  </div>
+</div>
+</body>
+</html>

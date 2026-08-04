@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>首页 - 低空空管APP</title>
+<style>
+:root{
+  --mp-bg:#0b0f18;--mp-card:#111826;--mp-surface:#141414;--mp-nav:#1a1d24;
+  --mp-text:#e7edf7;--mp-muted:#9aa7bb;--mp-border:#2a2f3a;
+  --mp-blue:#2f7cf6;--mp-green:#38d46f;--mp-orange:#ff9f43;--mp-red:#ff6a6a;
+  --mp-radius:12px;--mp-tab-h:56px;--mp-status-h:44px;--mp-safe-b:34px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif}
+.phone{width:390px;height:844px;background:var(--mp-bg);border-radius:40px;border:8px solid #2a2a2a;overflow:hidden;position:relative;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.status-bar{height:var(--mp-status-h);display:flex;align-items:center;justify-content:space-between;padding:0 24px;font-size:12px;color:var(--mp-text);flex-shrink:0}
+.status-bar .time{font-weight:600}
+.status-bar .icons{display:flex;gap:6px;align-items:center}
+.page-header{height:44px;display:flex;align-items:center;padding:0 16px;flex-shrink:0}
+.page-header .title{flex:1;text-align:center;font-size:17px;font-weight:600;color:var(--mp-text)}
+.page-header .hdr-btn{font-size:13px;color:var(--mp-blue);cursor:pointer;background:none;border:none;min-width:60px}
+.page-header .hdr-btn:first-child{text-align:left}
+.page-header .hdr-btn:last-child{text-align:right}
+.content{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+.content::-webkit-scrollbar{display:none}
+.tab-bar{height:calc(var(--mp-tab-h) + var(--mp-safe-b));background:var(--mp-nav);border-top:1px solid var(--mp-border);display:flex;align-items:flex-start;padding-top:8px;flex-shrink:0}
+.tab-bar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;text-decoration:none;color:var(--mp-muted);font-size:10px;transition:color .2s}
+.tab-bar a.active{color:var(--mp-blue)}
+.tab-bar a .icon{font-size:22px;height:26px;display:flex;align-items:center;justify-content:center}
+/* Notification list */
+.notify-tabs{display:flex;padding:0 16px;gap:0;border-bottom:1px solid var(--mp-border)}
+.notify-tabs .ntab{flex:1;text-align:center;padding:12px 0;font-size:13px;color:var(--mp-muted);cursor:pointer;border-bottom:2px solid transparent;position:relative}
+.notify-tabs .ntab.active{color:var(--mp-blue);border-bottom-color:var(--mp-blue)}
+.notify-tabs .ntab .badge{position:absolute;top:6px;right:calc(50% - 24px);background:var(--mp-red);color:#fff;font-size:10px;padding:1px 5px;border-radius:8px}
+.notify-list{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.notify-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px;position:relative}
+.notify-card .dot{position:absolute;top:16px;left:-4px;width:8px;height:8px;background:var(--mp-blue);border-radius:50%}
+.notify-card .n-header{display:flex;justify-content:space-between;margin-bottom:6px}
+.notify-card .n-type{font-size:13px;font-weight:500;color:var(--mp-text)}
+.notify-card .n-time{font-size:11px;color:var(--mp-muted)}
+.notify-card .n-body{font-size:12px;color:var(--mp-muted);line-height:1.5}
+.notify-card .n-tag{display:inline-block;margin-top:8px;padding:2px 8px;border-radius:4px;font-size:11px}
+.tag-green{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.tag-red{background:rgba(255,106,106,.15);color:var(--mp-red)}
+.tag-orange{background:rgba(255,159,67,.15);color:var(--mp-orange)}
+/* Approval card template */
+.notify-card .ap-title{font-size:14px;font-weight:500;color:var(--mp-text);margin-bottom:6px;padding-right:60px}
+.notify-card .ap-badge{position:absolute;top:0;right:0;padding:4px 10px;border-radius:0 var(--mp-radius) 0 8px;font-size:11px;font-weight:500}
+.notify-card .ap-badge.badge-green{background:rgba(56,212,111,.15);color:var(--mp-green)}
+.notify-card .ap-badge.badge-red{background:rgba(255,106,106,.15);color:var(--mp-red)}
+.notify-card .ap-flight-time{font-size:12px;color:var(--mp-muted);margin-bottom:6px;display:flex;align-items:center;gap:4px}
+.notify-card .ap-flight-time .ft-icon{font-size:13px}
+.notify-card .ap-status{margin-bottom:6px}
+.notify-card .ap-status .n-tag{margin-top:0}
+.notify-card .ap-reason{font-size:12px;color:var(--mp-muted);line-height:1.5;margin-bottom:6px}
+.notify-card .ap-time{font-size:11px;color:var(--mp-muted)}
+.notify-card .c-line{font-size:12px;color:var(--mp-muted);line-height:1.6}
+.notify-card .c-line .c-label{color:var(--mp-text)}
+.notify-panel{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.notify-panel::-webkit-scrollbar{display:none}
+.panel-empty{flex:1;display:flex;align-items:center;justify-content:center;color:var(--mp-muted);font-size:13px}
+/* Alert sub-filter */
+.alert-filter{display:flex;align-items:center;justify-content:space-between;padding:0 0 8px}
+.alert-filter .af-tabs{display:flex;gap:6px}
+.alert-filter .af-tab{padding:4px 12px;border-radius:12px;font-size:12px;color:var(--mp-muted);background:var(--mp-card);border:1px solid var(--mp-border);cursor:pointer}
+.alert-filter .af-tab.active{background:var(--mp-blue);color:#fff;border-color:var(--mp-blue)}
+.alert-filter .af-hint{font-size:11px;color:var(--mp-muted)}
+/* Alert priority badge */
+.notify-card .priority-tag{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;margin-left:8px;vertical-align:middle}
+.priority-tag.p-high{background:rgba(255,106,106,.15);color:var(--mp-red)}
+.priority-tag.p-mid{background:rgba(255,159,67,.15);color:var(--mp-orange)}
+.priority-tag.p-low{background:rgba(47,124,246,.15);color:var(--mp-blue)}
+/* 协调通知 quick action */
+.coord-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:14px;position:relative;cursor:pointer;transition:border-color .2s}
+.coord-card.expanded{border-color:var(--mp-blue)}
+.coord-card .coord-dot{position:absolute;top:18px;left:-4px;width:8px;height:8px;background:var(--mp-blue);border-radius:50%}
+.coord-card .coord-from{font-size:11px;color:var(--mp-muted);margin-bottom:4px}
+.coord-card .coord-body{font-size:13px;color:var(--mp-text);line-height:1.5;margin-bottom:6px}
+.coord-card .coord-aircraft{font-size:12px;color:var(--mp-muted);margin-bottom:4px}
+.coord-card .coord-time{font-size:11px;color:var(--mp-muted)}
+.coord-card .coord-actions{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--mp-border);gap:8px}
+.coord-card.expanded .coord-actions{display:flex}
+.coord-actions .ca-btn{flex:1;padding:8px 0;border-radius:6px;font-size:13px;border:none;cursor:pointer;text-align:center}
+.ca-btn.ca-ack{background:rgba(47,124,246,.12);color:var(--mp-blue);border:1px solid var(--mp-blue)}
+.ca-btn.ca-done{background:var(--mp-blue);color:#fff}
+.coord-card .coord-result{display:none;margin-top:10px;padding:6px 10px;border-radius:6px;font-size:12px;background:rgba(56,212,111,.1);color:var(--mp-green);text-align:center}
+.coord-card.submitted .coord-result{display:block}
+.coord-card.submitted .coord-actions{display:none}
+.coord-card.submitted{opacity:.65;cursor:default}
+/* Chat area */
+.chat-area{flex:1;padding:16px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}
+.msg{max-width:80%;padding:12px 16px;border-radius:16px;font-size:14px;line-height:1.5;color:var(--mp-text)}
+.msg-bot{background:var(--mp-card);border:1px solid var(--mp-border);align-self:flex-start;border-bottom-left-radius:4px}
+.msg-user{background:var(--mp-blue);align-self:flex-end;border-bottom-right-radius:4px}
+/* Input bar */
+.input-bar{padding:12px 16px;background:var(--mp-nav);border-top:1px solid var(--mp-border);display:flex;gap:10px;align-items:center;flex-shrink:0}
+.input-bar input{flex:1;height:36px;border-radius:18px;border:1px solid var(--mp-border);background:var(--mp-surface);color:var(--mp-text);padding:0 14px;font-size:14px;outline:none}
+.input-bar input::placeholder{color:var(--mp-muted)}
+.input-bar .send{width:36px;height:36px;border-radius:50%;background:var(--mp-blue);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+/* History list */
+.history-list{flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.history-list::-webkit-scrollbar{display:none}
+.history-card{background:var(--mp-card);border:1px solid var(--mp-border);border-radius:var(--mp-radius);padding:12px 14px;cursor:pointer}
+.history-card .h-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.history-card .h-title{font-size:14px;color:var(--mp-text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:230px}
+.history-card .h-time{font-size:11px;color:var(--mp-muted);flex-shrink:0}
+.history-card .h-preview{font-size:12px;color:var(--mp-muted);line-height:1.5;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* State toggle */
+.state{display:none;flex-direction:column;flex:1;overflow:hidden}
+.state.active{display:flex}
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="status-bar"><span class="time">9:41</span><div class="icons"><span>&#9679;</span><span>&#9679;</span><span>&#9679;</span><span>&#128267;</span></div></div>
+
+  <!-- Default state header -->
+  <div class="page-header" id="hdr-default"><div class="hdr-btn"></div><div class="title">首页</div><div class="hdr-btn"></div></div>
+  <!-- Chat state header -->
+  <div class="page-header" id="hdr-chat" style="display:none"><button class="hdr-btn" onclick="switchState('default')">&#8592; 返回</button><div class="title">智能问答</div><button class="hdr-btn" onclick="switchState('history')">历史</button></div>
+  <!-- History state header -->
+  <div class="page-header" id="hdr-history" style="display:none"><button class="hdr-btn" onclick="switchState('default')">&#8592; 返回</button><div class="title">对话历史</div><div class="hdr-btn"></div></div>
+
+  <!-- Default state: notification list -->
+  <div class="state active" id="state-default">
+    <div class="notify-tabs">
+      <div class="ntab active" onclick="switchNTab(0)">计划审批<span class="badge">1</span></div>
+      <div class="ntab" onclick="switchNTab(1)">告警通知<span class="badge">2</span></div>
+      <div class="ntab" onclick="switchNTab(2)">管制员通知</div>
+    </div>
+    <!-- Tab 0: 计划审批 -->
+    <div class="notify-panel" id="npanel-0">
+      <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_计划详情.html?from=home'"><div class="dot"></div>
+        <span class="ap-badge badge-green">通过</span>
+        <div class="ap-title">滨江起降场 → 科技园起降场</div>
+        <div class="ap-flight-time"><span class="ft-icon">&#128336;</span>2026-06-08 14:00 ~ 2026-06-08 16:00</div>
+      </div>
+      <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_计划详情.html?from=home'">
+        <span class="ap-badge badge-red">驳回</span>
+        <div class="ap-title">龙华起降场 → 观澜起降场</div>
+        <div class="ap-flight-time"><span class="ft-icon">&#128336;</span>2026-06-09 08:00 ~ 2026-06-08 10:00</div>
+        <div class="ap-reason">驳回原因：执飞时段与已有计划冲突</div>
+      </div>
+    </div>
+    <!-- Tab 1: 告警通知 -->
+    <div class="notify-panel" id="npanel-1" style="display:none">
+      <div class="alert-filter">
+        <div class="af-tabs">
+          <span class="af-tab active" onclick="switchAlertTab(this,'unread')">未读</span>
+          <span class="af-tab" onclick="switchAlertTab(this,'read')">已读</span>
+        </div>
+        <span class="af-hint">近3小时</span>
+      </div>
+      <!-- 未读列表：按优先级+时间排序 -->
+      <div id="alert-unread">
+        <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_告警详情.html?from=home'"><div class="dot"></div>
+          <div class="ap-title">禁飞区入侵告警<span class="priority-tag p-high">紧急</span></div>
+          <div class="c-line">航空器DJ-003未经授权进入福田禁飞区域，请立即处置</div>
+          <div class="ap-time">2026-6-10 09:38:00</div>
+        </div>
+        <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_告警详情.html?from=home'"><div class="dot"></div>
+          <div class="ap-title">飞行计划冲突预警<span class="priority-tag p-high">紧急</span></div>
+          <div class="c-line">飞行计划FT-XX001与FT-XX002交集航路段ETO时间安全间隔不满足30秒</div>
+          <div class="ap-time">2026-6-10 09:25:00</div>
+        </div>
+        <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_告警详情.html?from=home'"><div class="dot"></div>
+          <div class="ap-title">偏离预设航路告警<span class="priority-tag p-mid">重要</span></div>
+          <div class="c-line">航空器DJ-001偏离预设航路200m，请及时核查并修正航迹</div>
+          <div class="ap-time">2026-6-10 09:12:00</div>
+        </div>
+        <div class="notify-card" style="cursor:pointer" onclick="location.href='小程序_告警详情.html?from=home'"><div class="dot"></div>
+          <div class="ap-title">电子围栏接近提示<span class="priority-tag p-low">一般</span></div>
+          <div class="c-line">航空器DJ-002距宝安限飞区边界不足100m，请注意航迹</div>
+          <div class="ap-time">2026-6-10 08:55:00</div>
+        </div>
+      </div>
+      <!-- 已读列表 -->
+      <div id="alert-read" style="display:none">
+        <div class="notify-card" style="cursor:pointer;opacity:.65" onclick="location.href='小程序_告警详情.html?from=home'">
+          <div class="ap-title">低电量预警<span class="priority-tag p-mid">重要</span></div>
+          <div class="c-line">航空器DJ-005电量低于20%，请安排返航或就近降落</div>
+          <div class="ap-time">2026-6-10 08:30:00</div>
+        </div>
+        <div class="notify-card" style="cursor:pointer;opacity:.65" onclick="location.href='小程序_告警详情.html?from=home'">
+          <div class="ap-title">信号弱提示<span class="priority-tag p-low">一般</span></div>
+          <div class="c-line">航空器DJ-001通信信号RSSI低于-90dBm，注意通信中断风险</div>
+          <div class="ap-time">2026-6-10 07:48:00</div>
+        </div>
+      </div>
+    </div>
+    <!-- Tab 2: 协调通知 -->
+    <div class="notify-panel" id="npanel-2" style="display:none">
+      <div class="coord-card" onclick="expandCoord(this)">
+        <div class="coord-dot"></div>
+        <div class="coord-aircraft">滨江起降场-滨江起降场</div>
+        <div class="coord-body">请于14:00前调整航线，避让东侧临时管制空域</div>
+        <div class="coord-from">发送人：监视管制席-张XX</div>
+        <div class="coord-time">2026-6-10 09:20:00</div>
+        <div class="coord-actions">
+          <button class="ca-btn ca-ack" onclick="event.stopPropagation();submitCoord(this,'已知晓')">已知晓</button>
+          <button class="ca-btn ca-done" onclick="event.stopPropagation();submitCoord(this,'已处理')">已处理</button>
+        </div>
+        <div class="coord-result"></div>
+      </div>
+      <div class="coord-card" onclick="expandCoord(this)">
+        <div class="coord-dot"></div>
+        <div class="coord-aircraft">滨江起降场-滨江起降场</div>
+        <div class="coord-body">当前飞行高度超出申报上限，请降低至120m以下</div>
+        <div class="coord-from">发送人：监视管制席-李XX</div>
+        <div class="coord-time">2026-6-10 08:45:00</div>
+        <div class="coord-actions">
+          <button class="ca-btn ca-ack" onclick="event.stopPropagation();submitCoord(this,'已知晓')">已知晓</button>
+          <button class="ca-btn ca-done" onclick="event.stopPropagation();submitCoord(this,'已处理')">已处理</button>
+        </div>
+        <div class="coord-result"></div>
+      </div>
+      <div class="coord-card submitted" style="cursor:default">
+        <div class="coord-aircraft">滨江起降场-滨江起降场</div>
+        <div class="coord-body">临时航路变更通知，请按新航路WP3→WP5执行</div>
+        <div class="coord-from">发送人：计划管制席-王XX</div>
+        <div class="coord-time">2026-6-10 08:10:00</div>
+        <div class="coord-result">✓ 已知晓 · 08:12提交</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chat state: LLM conversation -->
+  <div class="state" id="state-chat">
+    <div class="chat-area">
+      <div class="msg msg-bot">你好，我是低空飞行知识助手。我可以回答关于飞行申报流程、空域规则、法规政策等问题。</div>
+      <div class="msg msg-user">飞行计划审批需要多久？</div>
+      <div class="msg msg-bot">飞行计划提交后，由PC端管制员进行审批。一般情况下审批时间为1-2个工作日。审批通过后您会收到通知，之后可以发起放飞申请。</div>
+    </div>
+  </div>
+
+  <!-- History state: conversation history list -->
+  <div class="state" id="state-history">
+    <div class="history-list">
+      <div class="history-card" onclick="switchState('chat')">
+        <div class="h-top"><span class="h-title">飞行计划审批需要多久？</span><span class="h-time">今天 09:30</span></div>
+        <div class="h-preview">飞行计划提交后，由PC端管制员进行审批。一般情况下审批时间为1-2个工作日…</div>
+      </div>
+      <div class="history-card" onclick="switchState('chat')">
+        <div class="h-top"><span class="h-title">放飞申请有哪些前置条件？</span><span class="h-time">昨天 18:12</span></div>
+        <div class="h-preview">发起放飞申请前，需确保飞行计划已审批通过，且航空器已完成实名登记…</div>
+      </div>
+      <div class="history-card" onclick="switchState('chat')">
+        <div class="h-top"><span class="h-title">禁飞空域如何查询？</span><span class="h-time">06-06 14:05</span></div>
+        <div class="h-preview">您可在“资讯”页查看实时空域公告，或在地图态势页查看禁飞、限飞区域…</div>
+      </div>
+      <div class="history-card" onclick="switchState('chat')">
+        <div class="h-top"><span class="h-title">无人机实名登记流程</span><span class="h-time">06-05 10:48</span></div>
+        <div class="h-preview">登录民用无人驾驶航空器综合管理平台，填写所有人信息及航空器序列号即可完成登记…</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-bar" id="input-bar"><input id="chatInput" placeholder="输入问题，向知识助手提问..." onfocus="switchState('chat')"/><button class="send">&#10148;</button></div>
+  <nav class="tab-bar">
+    <a class="active" href="小程序_首页.html"><span class="icon">&#127968;</span>首页</a>
+    <a href="小程序_办事.html"><span class="icon">&#128221;</span>申报</a>
+    <a href="小程序_查询.html"><span class="icon">&#128240;</span>资讯</a>
+    <a href="小程序_我的.html"><span class="icon">&#128100;</span>我的</a>
+  </nav>
+</div>
+<script>
+function switchState(s){
+  document.getElementById('state-default').classList.toggle('active',s==='default');
+  document.getElementById('state-chat').classList.toggle('active',s==='chat');
+  document.getElementById('state-history').classList.toggle('active',s==='history');
+  document.getElementById('hdr-default').style.display=s==='default'?'flex':'none';
+  document.getElementById('hdr-chat').style.display=s==='chat'?'flex':'none';
+  document.getElementById('hdr-history').style.display=s==='history'?'flex':'none';
+  // Input bar shown in default (entry to chat) and chat; hidden in history
+  document.getElementById('input-bar').style.display=s==='history'?'none':'flex';
+}
+function switchNTab(i){
+  document.querySelectorAll('.ntab').forEach((t,idx)=>t.classList.toggle('active',idx===i));
+  for(var k=0;k<3;k++){document.getElementById('npanel-'+k).style.display=(k===i)?'flex':'none';}
+}
+function switchAlertTab(el,type){
+  el.parentElement.querySelectorAll('.af-tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('alert-unread').style.display=type==='unread'?'block':'none';
+  document.getElementById('alert-read').style.display=type==='read'?'block':'none';
+}
+function expandCoord(card){
+  if(card.classList.contains('submitted'))return;
+  var all=document.querySelectorAll('.coord-card');
+  all.forEach(function(c){if(c!==card)c.classList.remove('expanded');});
+  card.classList.toggle('expanded');
+}
+function submitCoord(btn,action){
+  var card=btn.closest('.coord-card');
+  var result=card.querySelector('.coord-result');
+  var now=new Date();
+  var hm=String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  result.textContent='✓ '+action+' · '+hm+'提交';
+  card.classList.remove('expanded');
+  card.classList.add('submitted');
+  // 移除未读圆点
+  var dot=card.querySelector('.coord-dot');
+  if(dot)dot.style.display='none';
+}
+</script>
+</body>
+</html>
