@@ -73,6 +73,12 @@ def _print_banner():
     screenshot("name") - Take screenshot
     navigate("url")    - Navigate to URL (browser mode)
 
+  App discovery (when APK is ready):
+    find_app("keyword")  - Search installed apps
+    inspect_app("pkg")   - Get appPackage/appActivity
+    current_app()        - Get foreground app package
+    install_apk("path")  - Install APK to device
+
   Browser mode - Web locators:
     >>> from selenium.webdriver.common.by import By
     >>> driver.find_element(By.CSS_SELECTOR, ".btn-primary")
@@ -122,8 +128,15 @@ def help():
   adb.disable_wifi() / adb.enable_wifi()
   adb.take_screenshot_adb("test.png")
 
+[App Discovery] (when APK is ready)
+  find_app("dolphin")         - Search for installed apps
+  inspect_app("com.xxx.yyy")  - Get appPackage/appActivity/activities
+  current_app()               - Show current foreground app
+  install_apk("path.apk")     - Install APK to device
+
 [Tips]
   - Use chrome://inspect on PC for Chrome Remote Debugging
+  - Prototype testing: start serve_pages.py first, then use launch()
   - Ctrl+C to exit, then type exit() or Ctrl+D
 """)
     else:
@@ -223,6 +236,100 @@ def navigate(url=None):
     driver.get(url)
     print(f"Done. Title: {driver.title}")
     print(f"URL: {driver.current_url}")
+
+
+def find_app(keyword=None):
+    """查找已安装的应用 — 用于确定 appPackage"""
+    if keyword is None:
+        keyword = input("Enter keyword to search (e.g. 'dolphin', 'atc'): ").strip()
+    print(f"\nSearching installed apps matching '{keyword}'...")
+    apps = adb.get_installed_apps(keyword) if keyword else adb.get_installed_apps()
+    if apps:
+        print(f"\nFound {len(apps)} app(s):")
+        for a in apps:
+            print(f"  📦 {a['package_name']}  (v{a['version']})")
+    else:
+        print(f"\nNo apps found matching '{keyword}'")
+        print("  Try without keyword to see all third-party apps:")
+        print("  >>> adb.get_installed_apps()")
+    return apps
+
+
+def inspect_app(package_name=None):
+    """检查应用详细信息 — 用于确定 appActivity"""
+    if package_name is None:
+        package_name = input("Enter package name: ").strip()
+    if not package_name:
+        print("[ERROR] Package name required")
+        return
+
+    print(f"\nInspecting {package_name}...")
+    info = adb.get_app_info(package_name)
+    print(f"""
+════════════ App Info ════════════
+  Package:      {info['package_name']}
+  Version:      {info['version_name']} ({info['version_code']})
+  Target SDK:   {info['target_sdk']}
+  Main Activity:{info['main_activity']}
+  Activities:   {len(info['activities'])} total
+  Permissions:  {len(info['permissions'])} total
+""")
+
+    if info['activities']:
+        print("  All Activities:")
+        for act in info['activities'][:20]:
+            marker = " ← LAUNCHER" if act == info['main_activity'] else ""
+            print(f"    - {act}{marker}")
+        if len(info['activities']) > 20:
+            print(f"    ... and {len(info['activities']) - 20} more")
+
+    print("\n  For config.yaml:")
+    print(f"    app_package: \"{info['package_name']}\"")
+    print(f"    app_activity: \"{info['main_activity']}\"")
+    print("════════════════════════════════\n")
+    return info
+
+
+def current_app():
+    """获取当前前台应用包名"""
+    pkg = adb.get_current_app_package()
+    if pkg:
+        print(f"\n  Current foreground app: {pkg}")
+        print(f"  For more details: inspect_app('{pkg}')\n")
+    else:
+        print("\n  Cannot determine current app. Is screen on and unlocked?\n")
+    return pkg
+
+
+def install_apk(path=None):
+    """安装APK到设备，安装成功后自动获取应用信息"""
+    if path is None:
+        path = input("APK file path: ").strip().strip('"').strip("'")
+    if not path or not os.path.exists(path):
+        print(f"[ERROR] File not found: {path}")
+        return False
+
+    print(f"\nInstalling: {path}")
+    success = adb.install_app(path)
+    if success:
+        print("[OK] APK installed!")
+        # 尝试从APK文件名推测包名
+        import re
+        # 或让用户搜索
+        print("\n  Finding installed apps (searching 'dolphin'/'atc')...")
+        for kw in ["dolphin", "atc", "test"]:
+            apps = adb.get_installed_apps(kw)
+            if apps:
+                for a in apps:
+                    print(f"  Found: {a['package_name']} v{a['version']}")
+                    print(f"  Run: inspect_app('{a['package_name']}')")
+                break
+    else:
+        print("[ERROR] APK installation failed. Check:")
+        print("  1. USB debugging is enabled on the device")
+        print("  2. Install from unknown sources is allowed")
+        print("  3. The APK file is not corrupted")
+    return success
 
 
 # ============================================================

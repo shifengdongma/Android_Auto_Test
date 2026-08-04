@@ -545,6 +545,297 @@ class ADBHelper:
         return result["returncode"] == 0
 
     # ============================================================
+    # APK与应用信息检查 (用于原生模式配置)
+    # ============================================================
+
+    def get_installed_apps(
+        self,
+        keyword: Optional[str] = None,
+        device_id: Optional[str] = None,
+    ) -> List[Dict[str, str]]:
+        """
+        获取已安装的应用列表，支持关键字过滤
+
+        用于:
+            - 检查目标APP是否已安装
+            - 查找正确的 appPackage 配置
+            - 验证APK安装结果
+
+        Args:
+            keyword: 过滤关键字 (如 "dolphin", "atc")
+            device_id: 设备ID
+
+        Returns:
+            list[dict]: 应用列表，包含 package_name 和 version
+
+        Examples:
+            >>> adb.get_installed_apps("dolphin")
+            [{"package_name": "com.dolphin.atc", "version": "1.0.0"}]
+        """
+        args = ["shell", "pm", "list", "packages", "-3"]  # -3 = 仅第三方应用
+        if keyword:
+            args.append(keyword)
+        result = self._run_adb(args, device_id=device_id)
+
+        apps = []
+        for line in result["stdout"].split("\n"):
+            if line.startswith("package:"):
+                pkg = line.replace("package:", "").strip()
+                apps.append({
+                    "package_name": pkg,
+                    "version": self._get_package_version(pkg, device_id),
+                })
+
+        logger.info(f"找到 {len(apps)} 个匹配应用 (keyword={keyword or 'all'})")
+        return apps
+
+    def get_app_info(self, package_name: str, device_id: Optional[str] = None) -> Dict[str, any]:
+        """
+        获取应用详细信息 — 用于确定 config.yaml 中的 appPackage 和 appActivity
+
+        Args:
+            package_name: 应用包名 (如 com.dolphin.atc)
+            device_id: 设备ID
+
+        Returns:
+            dict: {
+                "package_name": str,
+                "version_name": str,
+                "version_code": str,
+                "main_activity": str,       # 启动Activity
+                "target_sdk": str,
+                "permissions": list[str],
+                "activities": list[str],    # 所有Activity列表
+            }
+
+        Examples:
+            >>> info = adb.get_app_info("com.dolphin.atc")
+            >>> print(f"appPackage: {info['package_name']}")
+            >>> print(f"appActivity: {info['main_activity']}")
+        """
+        if device_id is None:
+            device_id = self.get_first_device_id()
+
+        info = {
+            "package_name": package_name,
+            "version_name": "unknown",
+            "version_code": "unknown",
+            "main_activity": "unknown",
+            "target_sdk": "unknown",
+            "permissions": [],
+            "activities": [],
+        }
+
+        # 获取包详细信息
+        result = self._run_adb(
+            ["shell", "dumpsys", "package", package_name],
+            device_id=device_id,
+            timeout=30,
+        )
+
+        if result["returncode"] != 0 or not result["stdout"]:
+            logger.warning(f"未找到应用: {package_name}")
+            return info
+
+        output = result["stdout"]
+
+        # 提取版本信息
+        import re
+        vn = re.search(r"versionName=(\S+)", output)
+        if vn:
+            info["version_name"] = vn.group(1)
+        vc = re.search(r"versionCode=(\S+)", output)
+        if vc:
+            info["version_code"] = vc.group(1)
+
+        # 提取targetSdk
+        ts = re.search(r"targetSdk=(\d+)", output)
+        if ts:
+            info["target_sdk"] = ts.group(1)
+
+        # 提取启动Activity (在MAIN + LAUNCHER intent-filter中)
+        # 匹配格式: package.name/.ActivityName 或 package.name/full.ActivityName
+        launcher_section = re.search(
+            r"android\.intent\.action\.MAIN.*?android\.intent\.category\.LAUNCHER",
+            output,
+            re.DOTALL,
+        )
+        if launcher_section:
+            # 往回找最近的Activity声明
+            section_start = max(0, output.rfind("filter", 0, launcher_section.start()))
+            activity_match = re.search(
+                rf"{re.escape(package_name)}/(\.?\S+)", output[section_start:]
+            )
+            if activity_match:
+                info["main_activity"] = activity_match.group(1)
+
+        # 如果没有找到LAUNCHER Activity，尝试其他方式
+        if info["main_activity"] == "unknown":
+            # 方式2: cmd package resolve-activity
+            resolve = self._run_adb(
+                ["shell", "cmd", "package", "resolve-activity",
+                 "--brief", package_name],
+                device_id=device_id,
+            )
+            if resolve["returncode"] == 0 and resolve["stdout"]:
+                # 输出格式: package.name/.ActivityName
+                parts = resolve["stdout"].strip().split("/")
+                if len(parts) == 2:
+                    info["main_activity"] = parts[1]
+
+        # 提取所有Activity
+        for m in re.finditer(rf"{re.escape(package_name)}/(\.?\S+)", output):
+            act = m.group(1)
+            if act not in info["activities"]:
+                info["activities"].append(act)
+
+        # 提取权限列表
+        perm_section = re.search(
+            r"requested permissions:.*?(?=\n\n|\n\w|\Z)", output, re.DOTALL
+        )
+        if perm_section:
+            for perm in re.findall(r"android\.permission\.\S+", perm_section.group(0)):
+                if perm not in info["permissions"]:
+                    info["permissions"].append(perm)
+
+        logger.info(f"应用信息: {package_name} v{info['version_name']}, "
+                     f"main={info['main_activity']}, "
+                     f"{len(info['activities'])} activities, "
+                     f"{len(info['permissions'])} permissions")
+        return info
+
+    def get_current_app_package(self, device_id: Optional[str] = None) -> str:
+        """
+        获取当前前台应用的包名
+
+        用于:
+            - 手动打开APP后，快速获取包名
+            - 验证driver启动的应用是否正确
+
+        Returns:
+            str: 前台应用包名，无前台应用返回空字符串
+        """
+        # Android 10+ 方式
+        result = self._run_adb(
+            ["shell", "dumpsys", "window", "windows"],
+            device_id=device_id,
+        )
+        match = re.search(r"mCurrentFocus=.*?\{[^}]*\s+(\S+)/", result["stdout"])
+        if match:
+            return match.group(1)
+
+        # Android 9及以下 fallback
+        result2 = self._run_adb(
+            ["shell", "dumpsys", "activity", "activities"],
+            device_id=device_id,
+        )
+        match2 = re.search(r"mResumedActivity:.*?\{[^}]*\s+(\S+)/", result2["stdout"])
+        if match2:
+            return match2.group(1)
+
+        return ""
+
+    def _get_package_version(self, package_name: str, device_id: Optional[str] = None) -> str:
+        """获取应用版本号"""
+        result = self._run_adb(
+            ["shell", "dumpsys", "package", package_name],
+            device_id=device_id,
+            timeout=15,
+        )
+        match = re.search(r"versionName=(\S+)", result["stdout"])
+        return match.group(1) if match else "unknown"
+
+    def get_app_activities(
+        self, package_name: str, device_id: Optional[str] = None
+    ) -> List[str]:
+        """
+        获取应用的所有Activity列表
+
+        用于:
+            - 确定正确的 appActivity 配置值
+            - 直接跳转到特定页面进行测试
+
+        Args:
+            package_name: 应用包名
+            device_id: 设备ID
+
+        Returns:
+            list[str]: Activity名称列表
+        """
+        info = self.get_app_info(package_name, device_id)
+        return info.get("activities", [])
+
+    # ============================================================
+    # 端口转发 (用于本地服务器 → 手机访问)
+    # ============================================================
+
+    def reverse_port(
+        self,
+        remote_port: int,
+        local_port: Optional[int] = None,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """
+        建立 adb reverse 端口转发
+
+        让手机可以通过 127.0.0.1 访问 PC 上的服务端口。
+        用于: 本地HTTP原型服务器 → 手机Chrome浏览器
+
+        Args:
+            remote_port: 手机端端口
+            local_port: PC端端口 (默认与remote_port相同)
+            device_id: 设备ID
+
+        Returns:
+            bool: 是否设置成功
+
+        Examples:
+            >>> adb.reverse_port(8080)  # 手机 127.0.0.1:8080 → PC :8080
+        """
+        if local_port is None:
+            local_port = remote_port
+
+        logger.info(f"建立反向代理: device:{remote_port} -> host:{local_port}")
+        result = self._run_adb(
+            ["reverse", f"tcp:{remote_port}", f"tcp:{local_port}"],
+            device_id=device_id,
+        )
+        return result["returncode"] == 0
+
+    def remove_reverse(
+        self,
+        remote_port: Optional[int] = None,
+        device_id: Optional[str] = None,
+    ) -> bool:
+        """
+        移除 adb reverse 端口转发
+
+        Args:
+            remote_port: 要移除的手机端端口，None则移除所有
+            device_id: 设备ID
+        """
+        if remote_port:
+            args = ["reverse", "--remove", f"tcp:{remote_port}"]
+        else:
+            args = ["reverse", "--remove-all"]
+        result = self._run_adb(args, device_id=device_id)
+        return result["returncode"] == 0
+
+    def list_reverse(self, device_id: Optional[str] = None) -> List[str]:
+        """
+        列出所有 adb reverse 转发规则
+
+        Returns:
+            list[str]: 转发规则列表
+        """
+        result = self._run_adb(
+            ["reverse", "--list"], device_id=device_id
+        )
+        if result["returncode"] == 0 and result["stdout"]:
+            return result["stdout"].split("\n")
+        return []
+
+    # ============================================================
     # 应用交互
     # ============================================================
 

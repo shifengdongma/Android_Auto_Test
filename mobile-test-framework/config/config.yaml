@@ -14,7 +14,11 @@ active_env: test  # dev / test / staging
 # native: 测试原生APP (需要APK)
 # browser: 测试移动端H5页面 (通过手机Chrome浏览器)
 test_mode: browser
-test_url: "https://dkkgsit-test.testdolphin.com/atc/dashboard"
+# test_mode: native
+# ---- 浏览器模式测试URL ----
+# 本地原型测试: http://127.0.0.1:8080/小程序_首页.html
+# 远程H5测试: https://dkkgsit-test.testdolphin.com/atc/dashboard
+test_url: "http://127.0.0.1:8080/小程序_首页.html"
 
 # ---- Appium服务配置 ----
 appium:
