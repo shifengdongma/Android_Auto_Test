@@ -44,6 +44,12 @@
 | **申报(飞行计划)** | GPS定位、起降场搜索、计划创建、审批进度、离线条存 | ✅ |
 | **资讯** | 法律法规、通知公告、文章详情 | ✅ |
 | **我的** | 信誉积分、关于我们、退出登录 | ✅ |
+| **APK管理** | 版本检测、安装、卸载、升级 | ✅ |
+| **App生命周期** | 冷/热启动耗时、关闭、后台/回前台 | ✅ |
+| **性能** | 启动耗时、CPU、内存、电量、操作响应时间 | ✅ |
+| **弱网** | 断网、飞行模式、错误态验证 (限速接口预留) | ✅ |
+| **稳定性** | Monkey压力、ANR检测、logcat抓取 | ✅ |
+| **注册** | 注册流程 (预留, APK就绪后自动激活) | 🔜 |
 
 ---
 
@@ -81,7 +87,8 @@ mobile-test-framework/
 │   ├── home_page.py                # 首页 (双态: 通知+AI对话)
 │   ├── flight_page.py              # 申报页 (地图/GPS/计划创建/审批进度)
 │   ├── news_page.py                # 资讯页 (法律法/通知公告)
-│   └── mine_page.py                # 我的页 (信誉积分/退出)
+│   ├── mine_page.py                # 我的页 (信誉积分/退出)
+│   └── register_page.py            # 注册页 (预留, 定位器待APK校准)
 │
 ├── tests/                          # 测试用例层
 │   ├── __init__.py
@@ -90,24 +97,39 @@ mobile-test-framework/
 │   ├── test_home.py                # 首页测试 (8个用例)
 │   ├── test_flight.py              # 飞行计划测试 (8个用例)
 │   ├── test_news.py                # 资讯测试 (5个用例)
-│   └── test_mine.py                # 我的测试 (7个用例)
+│   ├── test_mine.py                # 我的测试 (7个用例)
+│   ├── test_app_install.py         # APK安装/卸载/升级测试
+│   ├── test_app_lifecycle.py       # App生命周期测试 (启动/关闭/后台)
+│   ├── test_performance.py         # 性能测试 (CPU/内存/电量/启动耗时)
+│   ├── test_network.py             # 弱网/断网测试
+│   ├── test_stability.py           # 稳定性测试 (monkey/ANR)
+│   └── test_register.py            # 注册测试 (预留, 自动跳过)
 │
 ├── utils/                          # 工具层
 │   ├── __init__.py
 │   ├── logger.py                   # 日志系统 (双通道/滚动/彩色)
 │   ├── screenshot.py               # 截图管理 (失败自动截图/Allure集成)
-│   └── adb_helper.py              # ADB工具 (GPS模拟/网络控制/应用管理)
+│   ├── adb_helper.py               # ADB工具 (GPS模拟/网络控制/应用管理/性能快照/monkey)
+│   ├── apk_manager.py              # APK管理 (版本解析/对比/安装升级)
+│   ├── app_lifecycle.py            # App生命周期 (启动耗时/后台/回前台)
+│   ├── performance.py              # 性能采集 (快照/采样/阈值/CSV)
+│   ├── logcat.py                   # logcat抓取 + ANR/崩溃分析
+│   └── network_controller.py       # 网络控制 (断网/飞行模式/限速接口预留)
 │
 ├── data/                           # 测试数据
 │   ├── login_data.yaml             # 登录参数化数据
 │   ├── flight_data.yaml            # 飞行计划参数化数据
-│   └── test_accounts.yaml          # 测试账号
+│   ├── test_accounts.yaml          # 测试账号
+│   └── register_data.yaml          # 注册参数化数据 (预留)
+│
+├── apk/                            # 本地APK目录 (自动创建, git排除)
 │
 ├── reports/                        # 测试报告输出
 │   ├── allure-results/             # Allure原始数据
-│   └── screenshots/                # 失败截图
+│   ├── screenshots/                # 失败截图
+│   └── performance/                # 性能CSV数据
 │
-├── logs/                           # 执行日志
+├── logs/                           # 执行日志 (含logcat)
 ├── requirements.txt                # Python依赖
 ├── pytest.ini                      # Pytest配置
 ├── run_tests.py                    # 一键运行脚本
@@ -289,6 +311,31 @@ pytest tests/ -m offline      # 离线测试
 pytest tests/ -m "not slow"   # 排除慢测试
 ```
 
+### 新增测试模块
+
+```bash
+# APK安装/卸载/升级测试 (需先将APK放入 apk/ 目录, 无APK自动跳过)
+python run_tests.py --module install
+
+# App生命周期测试 (启动/关闭/后台, 目标App未安装时回退Chrome验证机制)
+python run_tests.py --module lifecycle
+
+# 性能采集 (基线模式: 只采集不告警)
+python run_tests.py --module performance --perf-baseline
+
+# 性能严格模式 (超阈值判失败)
+python run_tests.py --module performance --perf-strict
+
+# 弱网/断网测试
+python run_tests.py --module network
+
+# Monkey压力/稳定性测试
+python run_tests.py --module stability
+
+# 注册测试 (预留, APK就绪校准定位器后自动激活)
+python run_tests.py --module register
+```
+
 ### 并行执行
 
 ```bash
@@ -386,6 +433,97 @@ allure generate reports/allure-results -o reports/allure-report --clean
 | `test_logout_cancel` | mine | 取消退出 |
 | `test_user_profile` | mine | 个人信息 |
 
+### APK管理测试 (`test_app_install.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_find_local_apk_files` | install | 扫描本地APK目录 |
+| `test_parse_apk_info` | install | 解析APK版本/包名 |
+| `test_compare_versions_*` | install | 版本对比逻辑 |
+| `test_install_apk` | install | 安装APK并验证 |
+| `test_install_is_idempotent` | install | 覆盖安装幂等 |
+| `test_upgrade_apk` | install | 升级流程 |
+| `test_uninstall_apk` | install | 卸载并验证 |
+| `test_ensure_app_ready_flow` | install | 一键就绪流程 |
+| `test_report_status` | install | 状态汇总报告 |
+
+### App生命周期测试 (`test_app_lifecycle.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_cold_start_app` | lifecycle | 冷启动耗时+进程存活 |
+| `test_launch_state_detected` | lifecycle | COLD/WARM自动识别 |
+| `test_close_app` | lifecycle | 关闭应用 |
+| `test_background_and_resume` | lifecycle | 后台/回前台 |
+| `test_background_state_after_home_key` | lifecycle | HOME键切后台 |
+| `test_cold_start_time` | lifecycle, perf | 冷启动3轮统计 |
+| `test_warm_start_time` | lifecycle, perf | 热启动3轮统计 |
+| `test_state_report` | lifecycle | 状态报告 |
+
+### 性能测试 (`test_performance.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_cpu_snapshot` | perf | CPU快照 |
+| `test_memory_snapshot` | perf | 内存TOTAL PSS |
+| `test_battery_snapshot` | perf | 电量/温度 |
+| `test_startup_cold_with_threshold` | perf | 冷启动+阈值校验 |
+| `test_page_operation_response` | perf | 操作响应时间 |
+| `test_sampling_during_scenario` | perf | 场景定时采样 |
+| `test_threshold_policy_warn_only` | perf | 阈值策略 |
+| `test_csv_encoding_utf8_sig` | perf | CSV编码 |
+
+### 弱网测试 (`test_network.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_disconnect_all_blocks_network` | weaknet, offline | 完全断网 |
+| `test_restore_network_recovers` | weaknet, offline | 网络恢复 |
+| `test_airplane_mode` | weaknet | 飞行模式 |
+| `test_login_fails_when_offline` | weaknet | 断网登录错误态 |
+| `test_throttle_interface_reserved` | weaknet | 限速接口预留 |
+
+### 稳定性测试 (`test_stability.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_monkey_smoke` | stability, monkey, slow | Monkey冒烟200事件 |
+| `test_monkey_with_perf_sampling` | stability, monkey, perf, slow | Monkey压测+性能采样 |
+| `test_monkey_abort_on_wrong_package` | stability, monkey | 不存在的包容错 |
+| `test_anr_detector_scan` | stability | ANR检测器 |
+| `test_logcat_capture_and_attach` | stability | logcat抓取+Allure |
+
+### 注册测试 (`test_register.py`)
+
+| 用例 | 标记 | 说明 |
+|------|------|------|
+| `test_register_page_displayed` | register | 注册页显示 (未校准则跳过) |
+| `test_register_success` | register | 正常注册 (数据驱动) |
+| `test_register_validation` | register | 注册校验异常 (数据驱动) |
+
+---
+
+## APK 工作流(正式APK就绪后)
+
+```mermaid
+flowchart LR
+    A[放置APK到 apk/ 目录] --> B[python run_tests.py --module install]
+    B --> C{自动对比版本}
+    C -->|未安装| D[安装]
+    C -->|本地更新| E[升级 -r -d]
+    C -->|版本一致| F[跳过]
+    D & E & F --> G[切换 config.yaml test_mode: native]
+    G --> H[运行业务测试]
+```
+
+1. 将正式APK放入 `mobile-test-framework/apk/` 目录
+2. 运行 `python run_tests.py --module install` 自动安装/升级
+3. 编辑 `config/config.yaml` 将 `test_mode` 从 `browser` 切换为 `native`
+4. 用 Appium Inspector 校准 `pages/` 中各页面的定位器
+5. 运行业务测试: `python run_tests.py --smoke`
+
+> 性能基线建立与弱网方案详见 docs/ 目录文档。
+
 ---
 
 ## 框架设计
@@ -420,9 +558,23 @@ allure generate reports/allure-results -o reports/allure-report --clean
 
 1. **定位策略优先级**: `accessibility_id` > `resource-id` > `xpath` > `class_name`
 2. **等待策略**: 统一使用`WebDriverWait`显式等待，避免`time.sleep()`
-3. **失败截图**: 通过`pytest_runtest_makereport` hook自动触发
+3. **失败截图**: 通过`pytest_runtest_makereport` hook自动触发 (失败时同时attach logcat现场)
 4. **数据驱动**: YAML管理测试数据，通过`@pytest.mark.parametrize`注入
 5. **iOS扩展**: BasePage平台无关，config中预留iOS配置段
+6. **性能/生命周期/APK能力走ADB层**: 不依赖driver，browser/native双模式可用，
+   driver挂掉后仍能采集
+7. **守卫机制**: `require_apk`/`require_native_mode` 用skip而非fail，
+   APK未就绪时新用例自动跳过，仓库保持全绿
+8. **弱网限速接口预留**: 开关级断网已实现，限速通过 `ThrottleController` 抽象协议
+   预留 (真机限速需PC侧代理) — 详见 `docs/弱网测试方案.md`
+
+### 相关文档
+
+| 文档 | 说明 |
+|------|------|
+| `docs/APK管理使用说明.md` | APK版本解析/安装/升级流程 |
+| `docs/性能测试基线建立.md` | 性能基线建立步骤与阈值校准 |
+| `docs/弱网测试方案.md` | 弱网测试方案与代理限速接入 |
 
 ---
 

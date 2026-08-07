@@ -26,6 +26,21 @@ from pathlib import Path
 # 项目根目录
 PROJECT_ROOT = Path(__file__).parent
 
+# 测试模块名 -> 测试文件映射
+MODULE_FILES = {
+    "login": "tests/test_login.py",
+    "home": "tests/test_home.py",
+    "flight": "tests/test_flight.py",
+    "news": "tests/test_news.py",
+    "mine": "tests/test_mine.py",
+    "install": "tests/test_app_install.py",
+    "lifecycle": "tests/test_app_lifecycle.py",
+    "performance": "tests/test_performance.py",
+    "network": "tests/test_network.py",
+    "stability": "tests/test_stability.py",
+    "register": "tests/test_register.py",
+}
+
 
 def run_command(cmd: list, description: str = "") -> int:
     """
@@ -76,6 +91,24 @@ def main():
 
   # 调试模式 (单用例，显示详细输出)
   python run_tests.py --debug tests/test_login.py::test_login_success
+
+  # APK安装/升级测试 (需将APK放入 apk/ 目录)
+  python run_tests.py --module install
+
+  # App生命周期测试 (启动/关闭/后台)
+  python run_tests.py --module lifecycle
+
+  # 性能采集 (基线模式: 只采集不告警)
+  python run_tests.py --module performance --perf-baseline
+
+  # 性能严格模式 (超阈值判失败)
+  python run_tests.py --module performance --perf-strict
+
+  # 弱网/断网测试
+  python run_tests.py --module network
+
+  # Monkey压力测试
+  python run_tests.py --module stability
         """,
     )
 
@@ -86,8 +119,9 @@ def main():
     )
     parser.add_argument(
         "--module", type=str, default=None,
-        choices=["login", "home", "flight", "news", "mine"],
-        help="指定运行的测试模块"
+        choices=list(MODULE_FILES.keys()),
+        help="指定运行的测试模块: login/home/flight/news/mine/install/lifecycle/"
+             "performance/network/stability/register"
     )
     parser.add_argument(
         "--debug", type=str, default=None,
@@ -122,6 +156,20 @@ def main():
         help="Allure结果输出目录"
     )
 
+    # 性能测试配置
+    parser.add_argument(
+        "--perf-baseline", action="store_true",
+        help="性能基线模式: 只采集记录不按阈值告警 (建基线用)"
+    )
+    parser.add_argument(
+        "--perf-strict", action="store_true",
+        help="性能阈值严格模式: 超阈值判失败(覆盖warn_only)"
+    )
+    parser.add_argument(
+        "--apk-path", type=str, default=None,
+        help="指定本地APK路径(覆盖 config.apk.dir 自动扫描)"
+    )
+
     # 其他
     parser.add_argument(
         "--verbose", "-v", action="store_true", default=True,
@@ -146,7 +194,7 @@ def main():
     if args.debug:
         cmd.append(args.debug)
     elif args.module:
-        cmd.append(f"tests/test_{args.module}.py")
+        cmd.append(MODULE_FILES[args.module])
     else:
         cmd.append("tests/")
 
@@ -172,6 +220,14 @@ def main():
 
     # 设备索引
     cmd.extend(["--device-index", str(args.device)])
+
+    # 性能测试参数透传
+    if args.perf_baseline:
+        cmd.append("--perf-baseline")
+    if args.perf_strict:
+        cmd.append("--perf-strict")
+    if args.apk_path:
+        cmd.extend(["--apk-path", args.apk_path])
 
     # 执行测试
     exit_code = run_command(cmd, "执行自动化测试")

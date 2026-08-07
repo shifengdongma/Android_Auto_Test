@@ -1,0 +1,38 @@
+# ============================================================
+# 注册模块 - 参数化测试数据
+# 注意: 第一迭代无注册入口，本文件为框架预留骨架。
+#       APK就绪并校准定位器后自动生效。
+# ============================================================
+
+# 正常注册用例
+register_success_cases:
+  - username: "newuser01"
+    password: "Passw0rd123"
+    confirm: "Passw0rd123"
+    email: "newuser01@dolphin.com"
+    code: "123456"
+    description: "正常注册"
+
+# 注册校验异常用例 (expected_error: 期望的错误提示关键字)
+register_validation_cases:
+  - username: ""
+    password: "Passw0rd123"
+    confirm: "Passw0rd123"
+    expected_error: "用户名"
+    description: "空用户名"
+  - username: "u1"
+    password: "123"
+    confirm: "123"
+    expected_error: "密码"
+    description: "密码过短"
+  - username: "u1"
+    password: "Passw0rd123"
+    confirm: "Passw0rd1234"
+    expected_error: "不一致"
+    description: "两次密码不一致"
+  - username: "u1"
+    password: "Passw0rd123"
+    confirm: "Passw0rd123"
+    email: "not-an-email"
+    expected_error: "邮箱"
+    description: "邮箱格式错误"

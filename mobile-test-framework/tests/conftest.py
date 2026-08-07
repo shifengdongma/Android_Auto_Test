@@ -128,8 +128,141 @@ def screenshot_manager(driver):
 
 
 # ============================================================
+# 工具类Fixtures (APK管理/生命周期/性能/网络)
+# ============================================================
+
+@pytest.fixture(scope="session")
+def adb():
+    """
+    ADB工具单例 (Session级别)
+
+    Returns:
+        ADBHelper
+    """
+    from utils.adb_helper import ADBHelper
+    return ADBHelper()
+
+
+@pytest.fixture(scope="session")
+def apk_manager(adb, config, request):
+    """
+    APK管理器 (Session级别)
+
+    支持 --apk-path 指定APK路径。
+
+    Returns:
+        APKManager
+    """
+    from utils.apk_manager import APKManager
+    mgr = APKManager(adb=adb, config=config)
+    # 命令行指定APK时临时覆盖目录
+    apk_path = request.config.getoption("--apk-path", default=None)
+    if apk_path:
+        mgr._override_apk_path = apk_path
+    else:
+        mgr._override_apk_path = None
+    return mgr
+
+
+@pytest.fixture(scope="session")
+def app_lifecycle(adb, config):
+    """
+    App生命周期管理器 (Session级别)
+
+    注意: driver是function级别，此fixture以adb模式运行；
+          用例内如需driver增强可调用 lifecycle.set_driver(driver)。
+
+    Returns:
+        AppLifecycleManager
+    """
+    from utils.app_lifecycle import AppLifecycleManager
+    return AppLifecycleManager(adb=adb, config=config)
+
+
+@pytest.fixture(scope="session")
+def performance_collector(adb, config, request):
+    """
+    性能采集器 (Session级别)
+
+    支持 --perf-baseline (只采集不告警) / --perf-strict (超阈值判失败)。
+
+    Returns:
+        PerformanceCollector
+    """
+    from utils.performance import PerformanceCollector
+    pc = PerformanceCollector(adb=adb, config=config)
+    # 命令行参数覆盖阈值策略
+    if request.config.getoption("--perf-baseline", default=False):
+        pc._policy = "warn_only"
+        logger.info("性能基线模式: 只采集记录，不按阈值告警")
+    elif request.config.getoption("--perf-strict", default=False):
+        pc._policy = "strict"
+        logger.info("性能严格模式: 超阈值将判失败")
+    return pc
+
+
+@pytest.fixture(scope="session")
+def network_controller(adb, config):
+    """
+    网络控制器 (Session级别)
+
+    Returns:
+        NetworkController
+    """
+    from utils.network_controller import NetworkController
+    return NetworkController(adb=adb)
+
+
+# ============================================================
+# 守卫Fixtures (条件跳过)
+# ============================================================
+
+@pytest.fixture(scope="session")
+def require_native_mode(config):
+    """
+    native模式守卫: browser模式下跳过
+
+    APK就绪后切换 config.yaml 的 test_mode: native 即自动生效。
+    """
+    if config.get("test_mode") != "native":
+        pytest.skip("当前为browser模式，该用例需要native模式(test_mode: native)")
+    return True
+
+
+@pytest.fixture(scope="session")
+def require_apk(apk_manager):
+    """
+    APK存在守卫: 无本地APK文件时跳过
+
+    返回最新APK路径。
+    """
+    if getattr(apk_manager, "_override_apk_path", None):
+        return apk_manager._override_apk_path
+    apk = apk_manager.get_latest_apk()
+    if not apk:
+        pytest.skip("未找到本地APK文件，请放置到 config.apk.dir 目录")
+    return str(apk)
+
+
+# ============================================================
 # 业务Fixtures
 # ============================================================
+
+@pytest.fixture(scope="function")
+def weak_network(network_controller):
+    """
+    弱网用例Fixture (Function级别)
+
+    setup后交给用例控制网络，teardown强制恢复网络，
+    防止断网状态污染后续用例。
+    """
+    yield network_controller
+    # Teardown: 无论用例成败都恢复网络
+    try:
+        network_controller.restore_all()
+        logger.info("弱网用例结束，网络已恢复")
+    except Exception as e:
+        logger.error(f"网络恢复失败: {e}")
 
 @pytest.fixture(scope="function")
 def logged_in_driver(driver, config):
@@ -210,6 +343,24 @@ def pytest_addoption(parser):
         default=0,
         help="设备配置索引 (对应config.yaml中devices列表)",
     )
+    parser.addoption(
+        "--perf-baseline",
+        action="store_true",
+        default=False,
+        help="性能基线模式: 只采集记录不按阈值告警",
+    )
+    parser.addoption(
+        "--perf-strict",
+        action="store_true",
+        default=False,
+        help="性能阈值严格模式: 超阈值判失败(覆盖 warn_only)",
+    )
+    parser.addoption(
+        "--apk-path",
+        type=str,
+        default=None,
+        help="指定本地APK路径(覆盖 config.apk.dir 自动扫描)",
+    )
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -270,6 +421,31 @@ def pytest_runtest_makereport(item, call):
     except Exception as e:
         logger.error(f"失败截图执行失败: {e}")
 
+    # 失败时附加logcat尾部 (驱动挂掉也可用, 独立于driver)
+    try:
+        from utils.logcat import LogcatCapture
+
+        capture = LogcatCapture()
+        package = None
+        try:
+            cfg = ConfigManager()
+            package = cfg.get("devices")[0].get("app_package")
+        except Exception:
+            pass
+        log_tail = capture.tail(lines=100, package=package)
+        if log_tail and ALLURE_AVAILABLE:
+            # 截断50KB控制报告体积
+            if len(log_tail) > 50 * 1024:
+                log_tail = log_tail[-50 * 1024:]
+                log_tail = "...(截断, 完整日志见logs/logcat)\n" + log_tail
+            allure.attach(
+                log_tail,
+                name=f"logcat现场 - {test_name}",
+                attachment_type=allure.attachment_type.TEXT,
+            )
+    except Exception as e:
+        logger.warning(f"失败logcat获取失败: {e}")
+
 
 def pytest_configure(config):
     """
@@ -287,12 +463,31 @@ def pytest_configure(config):
     if ALLURE_AVAILABLE:
         env_props = PROJECT_ROOT / "reports" / "allure-results" / "environment.properties"
         env_props.parent.mkdir(parents=True, exist_ok=True)
+        # 追加设备型号/模式信息 (不依赖driver)
+        device_model = "unknown"
+        test_mode = "browser"
+        try:
+            from utils.adb_helper import ADBHelper
+            _adb = ADBHelper()
+            device_id = _adb.get_first_device_id()
+            if device_id:
+                device_model = _adb.get_device_info(device_id).get("model", "unknown")
+        except Exception:
+            pass
+        try:
+            from config.config_manager import ConfigManager
+            test_mode = ConfigManager().get("test_mode", "browser")
+        except Exception:
+            pass
         with open(env_props, "w", encoding="utf-8") as f:
             f.write(f"Project=低空空管自动化系统\n")
             f.write(f"Platform=Android\n")
             f.write(f"Framework=Appium2 + Pytest\n")
             f.write(f"Python={sys.version.split()[0]}\n")
             f.write(f"Date={datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"TestMode={test_mode}\n")
+            f.write(f"DeviceModel={device_model}\n")
+            f.write(f"PerfPolicy={config.getoption('--perf-strict', default=False) and 'strict' or 'warn_only'}\n")
 
 
 def pytest_sessionfinish(session, exitstatus):

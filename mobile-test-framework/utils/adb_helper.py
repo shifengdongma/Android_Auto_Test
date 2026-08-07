@@ -994,3 +994,240 @@ class ADBHelper:
             device_id=device_id,
         )
         return result["returncode"] == 0
+
+    # ============================================================
+    # 启动耗时测量 (性能测试)
+    # ============================================================
+
+    def start_app_measured(
+        self,
+        package_name: str,
+        activity: str,
+        device_id: Optional[str] = None,
+    ) -> Dict[str, any]:
+        """
+        启动应用并测量启动耗时 (am start -W)
+
+        Args:
+            package_name: 应用包名
+            activity: Activity全名
+            device_id: 设备ID
+
+        Returns:
+            dict: {
+                "success": bool,
+                "this_time_ms": int|None,   # 本次Activity启动耗时
+                "total_time_ms": int|None,  # 应用启动总耗时
+                "wait_time_ms": int|None,   # 含系统启动等待的耗时
+                "launch_state": str,        # COLD / WARM / UNKNOWN (Android 12+)
+                "raw": str,                 # 原始输出
+            }
+
+        Examples:
+            >>> result = adb.start_app_measured("com.dolphin.atc", ".MainActivity")
+            >>> print(f"冷启动耗时: {result['total_time_ms']}ms")
+        """
+        component = f"{package_name}/{activity}"
+        result = self._run_adb(
+            ["shell", "am", "start", "-W", "-n", component],
+            device_id=device_id,
+        )
+        output = result["stdout"]
+        info = {
+            "success": result["returncode"] == 0,
+            "this_time_ms": None,
+            "total_time_ms": None,
+            "wait_time_ms": None,
+            "launch_state": "UNKNOWN",
+            "raw": output,
+        }
+
+        # 解析耗时字段
+        for key, field in [
+            ("this_time_ms", r"ThisTime:\s+(\d+)"),
+            ("total_time_ms", r"TotalTime:\s+(\d+)"),
+            ("wait_time_ms", r"WaitTime:\s+(\d+)"),
+        ]:
+            m = re.search(field, output)
+            if m:
+                info[key] = int(m.group(1))
+
+        # Android 12+ 提供 LaunchState 字段 (COLD/WARM)，自动区分冷/热启动
+        m = re.search(r"^LaunchState:\s+(\w+)", output, re.MULTILINE)
+        if m:
+            info["launch_state"] = m.group(1).upper()
+
+        logger.info(
+            f"启动耗时: {package_name} Total={info['total_time_ms']}ms "
+            f"LaunchState={info['launch_state']}"
+        )
+        return info
+
+    # ============================================================
+    # 进程状态 (生命周期/稳定性测试)
+    # ============================================================
+
+    def get_pid(
+        self, package_name: str, device_id: Optional[str] = None
+    ) -> Optional[int]:
+        """
+        获取应用进程PID (主进程)
+
+        Args:
+            package_name: 应用包名
+            device_id: 设备ID
+
+        Returns:
+            int|None: 进程PID，应用未运行返回None
+        """
+        result = self._run_adb(
+            ["shell", "pidof", "-s", package_name],
+            device_id=device_id,
+        )
+        if result["returncode"] != 0 or not result["stdout"]:
+            return None
+        try:
+            return int(result["stdout"].strip().split()[0])
+        except (ValueError, IndexError):
+            return None
+
+    def is_process_alive(
+        self, package_name: str, device_id: Optional[str] = None
+    ) -> bool:
+        """检查应用进程是否存活"""
+        return self.get_pid(package_name, device_id=device_id) is not None
+
+    # ============================================================
+    # 性能原始快照 (解析归一在 PerformanceCollector)
+    # ============================================================
+
+    def top_snapshot(
+        self, pid: Optional[int] = None, device_id: Optional[str] = None
+    ) -> str:
+        """
+        获取top输出快照 (CPU/内存占用)
+
+        Args:
+            pid: 指定进程PID，None则取全量前40行
+            device_id: 设备ID
+
+        Returns:
+            str: top原始输出
+        """
+        args = ["shell", "top", "-b", "-n", "1"]
+        if pid:
+            args += ["-p", str(pid)]
+        result = self._run_adb(args, device_id=device_id, timeout=20)
+        lines = result["stdout"].split("\n")
+        # 全量时只保留前40行，控制输出体积
+        return "\n".join(lines[:40]) if not pid else result["stdout"]
+
+    def cpuinfo_snapshot(
+        self, package_name: str, device_id: Optional[str] = None
+    ) -> str:
+        """获取dumpsys cpuinfo快照 (包级CPU占比)"""
+        result = self._run_adb(
+            ["shell", "dumpsys", "cpuinfo"], device_id=device_id, timeout=20
+        )
+        # 只保留包含目标包名的行与表头
+        lines = [
+            line for line in result["stdout"].split("\n")
+            if package_name in line or "CPU%" in line
+        ]
+        return "\n".join(lines)
+
+    def meminfo_snapshot(
+        self, package_name: str, device_id: Optional[str] = None
+    ) -> str:
+        """获取dumpsys meminfo快照 (内存占用)"""
+        result = self._run_adb(
+            ["shell", "dumpsys", "meminfo", package_name],
+            device_id=device_id,
+            timeout=30,
+        )
+        return result["stdout"]
+
+    def battery_snapshot(self, device_id: Optional[str] = None) -> str:
+        """
+        获取dumpsys battery快照 (电量/温度/状态)
+
+        注意: battery服务只读；若其他工具曾执行 dumpsys battery set level N
+              (测试态)，必须先 dumpsys battery reset 恢复真实电量。
+        """
+        result = self._run_adb(
+            ["shell", "dumpsys", "battery"], device_id=device_id, timeout=20
+        )
+        return result["stdout"]
+
+    # ============================================================
+    # Monkey压力测试 (稳定性测试)
+    # ============================================================
+
+    def run_monkey(
+        self,
+        package_name: str,
+        events: int = 500,
+        seed: Optional[int] = None,
+        throttle_ms: int = 300,
+        kill_after_error: bool = True,
+        timeout: int = 600,
+        device_id: Optional[str] = None,
+    ) -> Dict[str, any]:
+        """
+        运行Monkey压力测试 (adb shell monkey)
+
+        Args:
+            package_name: 目标应用包名
+            events: 随机事件数
+            seed: 随机种子 (固定种子可复现)
+            throttle_ms: 事件间隔(毫秒)
+            kill_after_error: 出错后是否杀掉进程
+            timeout: 命令超时(秒)
+            device_id: 设备ID
+
+        Returns:
+            dict: {
+                "success": bool,    # 执行完成且无崩溃/ANR
+                "finished": bool,   # "Monkey finished" (正常跑完)
+                "crashed": bool,    # 出现 "// CRASH"
+                "anr": bool,        # 出现 "// ANR"
+                "aborted": bool,    # "Monkey aborted" (提前中止)
+                "raw_tail": str,    # 输出尾部(最后30行)
+            }
+
+        Examples:
+            >>> result = adb.run_monkey("com.dolphin.atc", events=500, seed=42)
+            >>> assert not result["crashed"], "Monkey测试出现崩溃"
+        """
+        args = ["shell", "monkey", "-p", package_name]
+        if seed is not None:
+            args += ["-s", str(seed)]
+        args += ["--throttle", str(throttle_ms)]
+        if kill_after_error:
+            args.append("--kill-process-after-error")
+        args += ["-v", str(events)]
+
+        logger.info(f"Monkey压力测试: {package_name} events={events} seed={seed}")
+        result = self._run_adb(args, device_id=device_id, timeout=timeout)
+        output = result["stdout"]
+        tail = "\n".join(output.split("\n")[-30:])
+
+        info = {
+            "success": False,
+            "finished": "Monkey finished" in output,
+            "crashed": "// CRASH" in output,
+            "anr": "// ANR" in output,
+            "aborted": "Monkey aborted" in output,
+            "raw_tail": tail,
+        }
+        info["success"] = info["finished"] and not info["crashed"] and not info["anr"]
+
+        if info["crashed"]:
+            logger.error(f"Monkey测试出现崩溃: {package_name}")
+        elif info["anr"]:
+            logger.error(f"Monkey测试出现ANR: {package_name}")
+        elif info["aborted"]:
+            logger.warning(f"Monkey测试提前中止: {package_name}")
+        else:
+            logger.info(f"Monkey测试完成: {package_name} events={events}")
+        return info

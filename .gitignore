@@ -18,6 +18,9 @@ mobile-test-framework/reports/
 mobile-test-framework/logs/
 *.log
 
+# APK binaries (not suitable for git)
+mobile-test-framework/apk/*.apk
+
 # OS
 .DS_Store
 Thumbs.db

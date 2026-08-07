@@ -26,3 +26,4 @@ colorlog>=6.8.0              # 彩色控制台日志
 # 工具库
 python-dateutil>=2.8.0       # 时间处理
 Pillow>=10.0.0               # 截图处理(可选)
+pyaxmlparser>=0.3.30         # APK本地版本解析(aapt不可用时的纯Python回退)

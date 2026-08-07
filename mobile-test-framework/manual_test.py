@@ -79,6 +79,17 @@ def _print_banner():
     current_app()        - Get foreground app package
     install_apk("path")  - Install APK to device
 
+  APK / lifecycle / perf tools:
+    list_apks()             - List local APKs
+    apk_info("path")        - Parse APK info (version/activity)
+    check_apk_version()     - Compare local vs device version
+    install_or_update_apk() - One-click install/upgrade
+    bg_app() / fg_app()     - App background / foreground
+    cold_start(rounds=3)    - Cold start time measurement
+    perf_snapshot("pkg")    - CPU/memory/battery snapshot
+    monkey_run("pkg", 500)  - Monkey stress + ANR scan
+    logcat_tail(200, "pkg") - View logcat tail
+
   Browser mode - Web locators:
     >>> from selenium.webdriver.common.by import By
     >>> driver.find_element(By.CSS_SELECTOR, ".btn-primary")
@@ -330,6 +341,173 @@ def install_apk(path=None):
         print("  2. Install from unknown sources is allowed")
         print("  3. The APK file is not corrupted")
     return success
+
+
+# ============================================================
+# APK管理 / 生命周期 / 性能 / 日志 工具函数
+# ============================================================
+
+def apk_info(path=None):
+    """解析本地APK文件信息 (包名/版本/启动Activity/解析方式)"""
+    from utils.apk_manager import APKManager
+    mgr = APKManager(adb=adb, config=config)
+    if path is None:
+        apk = mgr.get_latest_apk()
+        if not apk:
+            print(f"\n[WARN] 未找到本地APK (目录: {mgr.get_apk_dir()})")
+            print("  请将APK放入该目录，或指定路径: apk_info('path/to/app.apk')")
+            return None
+        path = str(apk)
+    info = mgr.parse_apk_info(path)
+    print(f"""
+════════════ APK 信息 ════════════
+  文件:         {info['apk_path']}
+  包名:         {info['package_name']}
+  版本:         {info['version_name']} (code={info['version_code']})
+  启动Activity: {info['main_activity']}
+  解析方式:     {info['parse_method']}
+══════════════════════════════════
+""")
+    return info
+
+
+def list_apks():
+    """列出本地APK目录中的所有APK及解析信息"""
+    from utils.apk_manager import APKManager
+    mgr = APKManager(adb=adb, config=config)
+    files = mgr.find_apk_files()
+    if not files:
+        print(f"\n[WARN] 未找到本地APK (目录: {mgr.get_apk_dir()})")
+        return []
+    print(f"\n本地APK文件 ({len(files)}个):")
+    for f in files:
+        info = mgr.parse_apk_info(str(f))
+        print(f"  📦 {f.name}  v{info['version_name']} (code={info['version_code']}, {info['parse_method']})")
+    return files
+
+
+def check_apk_version():
+    """对比本地APK与设备已装版本，给出建议"""
+    from utils.apk_manager import APKManager
+    mgr = APKManager(adb=adb, config=config)
+    report = mgr.report_status()
+    installed = report["installed"]
+    if installed["is_installed"]:
+        print(f"\n设备已装: {installed['package_name']} v{installed['version_name']} (code={installed['version_code']})")
+    else:
+        print(f"\n设备未安装: {report.get('local_apks', [{}])[0].get('package_name', 'unknown')}")
+    if report["local_apks"]:
+        print("本地APK:")
+        for apk in report["local_apks"]:
+            print(f"  - {apk['file']}  v{apk['version_name']} (code={apk['version_code']})")
+    print(f"\n建议: {report['recommendation']}")
+    return report
+
+
+def install_or_update_apk(path=None):
+    """一键安装/升级APK (自动对比版本)"""
+    from utils.apk_manager import APKManager
+    mgr = APKManager(adb=adb, config=config)
+    report = mgr.ensure_app_ready(apk_path=path)
+    action_map = {
+        "installed": "✅ 已安装",
+        "upgraded": "✅ 已升级",
+        "skipped": "⏭ 版本一致，跳过",
+        "missing_apk": "❌ 未找到本地APK",
+        "install_failed": "❌ 安装失败",
+    }
+    print(f"\n[{'OK' if report['success'] else 'FAIL'}] {action_map.get(report['action'], report['action'])}")
+    print(f"  本地版本:   {report['local_version']}")
+    print(f"  设备版本:   {report['installed_version']}")
+    return report
+
+
+def bg_app(pkg=None):
+    """应用切后台 (HOME键)"""
+    from utils.app_lifecycle import AppLifecycleManager
+    lc = AppLifecycleManager(adb=adb, config=config)
+    ok = lc.background(pkg)
+    print(f"\n{'[OK]' if ok else '[FAIL]'} 应用已切后台" if ok else "\n[FAIL] 切后台失败")
+    return ok
+
+
+def fg_app(pkg=None, activity=None):
+    """应用回前台"""
+    from utils.app_lifecycle import AppLifecycleManager
+    lc = AppLifecycleManager(adb=adb, config=config)
+    ok = lc.resume(pkg, activity)
+    print(f"\n{'[OK] 应用已回前台' if ok else '[FAIL] 回前台失败'}")
+    return ok
+
+
+def cold_start(pkg=None, rounds=3):
+    """冷启动耗时测量 (force-stop后多轮 am start -W)"""
+    from utils.app_lifecycle import AppLifecycleManager
+    lc = AppLifecycleManager(adb=adb, config=config)
+    stats = lc.cold_start_time(package=pkg, rounds=rounds)
+    print(f"\n冷启动耗时 ({rounds}轮): {stats}")
+    return stats
+
+
+def perf_snapshot(pkg=None):
+    """采集CPU/内存/电量快照"""
+    from utils.performance import PerformanceCollector
+    pc = PerformanceCollector(adb=adb, config=config)
+    if pkg is None:
+        pkg = config.get("devices")[0].get("app_package", "")
+    snap = pc.snapshot_all(pkg)
+    print(f"""
+════════════ 性能快照 ════════════
+  CPU:    {snap['cpu'].get('cpu_percent')}%  ({snap['cpu'].get('threshold_result')})
+  内存:   {snap['memory'].get('total_pss_kb') or snap['memory'].get('total_kb')} KB
+          ({snap['memory'].get('threshold_result')})
+  电量:   {snap['battery'].get('level')}%  ({snap['battery'].get('status_text')})
+  温度:   {snap['battery'].get('temperature_c')}°C
+═══════════════════════════════════
+""")
+    return snap
+
+
+def monkey_run(pkg=None, events=500):
+    """运行monkey压力测试并扫描ANR/崩溃"""
+    if pkg is None:
+        pkg = config.get("devices")[0].get("app_package", "")
+    result = adb.run_monkey(pkg, events=events)
+    print(f"""
+════════════ Monkey 结果 ════════════
+  包名:     {pkg}
+  事件数:   {events}
+  完成:     {result['finished']}
+  崩溃:     {result['crashed']}
+  ANR:      {result['anr']}
+  中止:     {result['aborted']}
+  结论:     {'✅ 通过' if result['success'] else '❌ 存在问题'}
+""")
+    # 扫描logcat
+    from utils.logcat import LogcatAnalyzer
+    analyzer = LogcatAnalyzer(pkg)
+    log_tail = adb._run_adb(["logcat", "-d", "-v", "threadtime"], timeout=30)["stdout"]
+    hits = analyzer.scan(log_tail)
+    if hits:
+        print(f"⚠️  日志中检测到 {len(hits)} 个异常事件:")
+        for h in hits[:10]:
+            print(f"    [{h['kind']}] {h['line'][:120]}")
+    else:
+        print("✅ 日志扫描无异常")
+    return result
+
+
+def logcat_tail(lines=200, pkg=None):
+    """查看设备logcat末尾N行 (可按包名过滤)"""
+    from utils.logcat import LogcatCapture
+    capture = LogcatCapture(adb=adb)
+    content = capture.tail(lines=lines, package=pkg)
+    if content:
+        print(f"\n--- logcat 最后{lines}行{'(过滤: ' + pkg + ')' if pkg else ''} ---")
+        print(content)
+    else:
+        print("\n[WARN] 无法获取logcat")
+    return content
 
 
 # ============================================================

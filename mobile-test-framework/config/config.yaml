@@ -125,3 +125,41 @@ environments:
   staging:
     app_package: "com.dolphin.atc.staging"
     app_activity: ".MainActivity"
+
+# ---- APK配置 (安装/升级/版本检测) ----
+apk:
+  dir: "apk"                        # 本地APK目录(相对mobile-test-framework/), 不存在自动创建
+  package_name: "com.dolphin.atc"   # 缺省包名(与 devices[].app_package 一致)
+  aapt_path: ""                     # aapt路径, 留空自动探测 (ANDROID_HOME/LOCALAPPDATA SDK build-tools)
+
+# ---- 性能采集配置 ----
+performance:
+  enabled: true
+  threshold_policy: "warn_only"     # warn_only: 超阈值仅提示(建基线); strict: 超阈值断言失败(--perf-strict)
+  csv_dir: "reports/performance"    # 性能CSV输出目录
+  sample_interval: 2                # 定时采样间隔(秒)
+  thresholds:
+    cold_start_ms: 5000             # 冷启动耗时 am start -W TotalTime
+    warm_start_ms: 2000             # 热启动(后台->前台)耗时
+    operation_response_ms: 3000     # 页面操作响应时间
+    memory_mb: 500                  # TOTAL PSS 内存 (MB)
+    cpu_percent: 80                 # 单次采样 %CPU
+    battery_drop_percent: 5         # 单个用例期间电量下降上限
+
+# ---- 弱网/异常配置 ----
+network:
+  weaknet_mode: "offline"           # offline / airplane / wifi_only / mobile_only / throttle
+  throttle:
+    backend: "none"                 # none / mitmproxy / charles (预留, 需PC侧代理)
+    down_kbps: 100                  # 弱网下行带宽
+    up_kbps: 50                     # 弱网上行带宽
+    latency_ms: 500                 # 弱网延迟
+    proxy_host: "127.0.0.1"         # PC代理地址(手机WiFi代理指向此)
+    proxy_port: 8899                # PC代理端口
+
+# ---- 稳定性配置 ----
+stability:
+  monkey_events: 500                # monkey压力测试默认事件数
+  monkey_seed: 42                   # 随机种子(固定可复现)
+  monkey_throttle_ms: 300           # 事件间隔(毫秒)
+  anr_check_after_each_test: false  # 是否每个用例后都扫ANR(默认关, 开销大)
