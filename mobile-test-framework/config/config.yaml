@@ -13,8 +13,8 @@ active_env: test  # dev / test / staging
 # ---- 测试模式 ----
 # native: 测试原生APP (需要APK)
 # browser: 测试移动端H5页面 (通过手机Chrome浏览器)
-test_mode: browser
-# test_mode: native
+# test_mode: browser
+test_mode: native
 # ---- 浏览器模式测试URL ----
 # 本地原型测试: http://127.0.0.1:8080/小程序_首页.html
 # 远程H5测试: https://dkkgsit-test.testdolphin.com/atc/dashboard
@@ -68,6 +68,24 @@ devices:
     # 以下为后续扩展预留
     # language/locale 留空使用设备默认设置，避免 Appium 拼接错误
     # 如需设置: language: "zh", locale: "CN" → Appium 组合为 zh-CN
+
+  # --- 真机设备 (华为 NOH-AN01) ---
+  - name: "NOH-AN01"
+    platform: "Android"
+    platform_version: "12"        # Android 12
+    device_name: "Huawei_NOH"
+    udid: ""                      # 留空自动检测
+    # TODO: 验证框架后改回 com.dolphin.atc / .MainActivity
+    app_package: "com.baidu.searchbox"
+    app_activity: ".SplashActivity"
+    automation_name: "UiAutomator2"
+    no_reset: true
+    full_reset: false
+    auto_grant_permissions: true
+    new_command_timeout: 120
+    # Android 12 首次连接：允许 Appium 安装 io.appium.settings / io.appium.uiautomator2.server 等辅助 APK
+    skip_device_initialization: false
+    skip_server_installation: false
 
   # --- 模拟器设备 ---
   - name: "Emulator_Pixel6"

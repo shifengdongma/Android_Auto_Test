@@ -18,9 +18,12 @@
 """
 
 import os
+import logging
 import yaml
 from pathlib import Path
 from typing import Any, Dict, Optional, List
+
+logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
@@ -168,6 +171,59 @@ class ConfigManager:
             )
 
         return devices[index].copy()
+
+    def get_device_config_by_model(self, model: str) -> Optional[Dict[str, Any]]:
+        """
+        根据设备型号名称查找匹配的设备配置
+
+        通过 ADB 获取的 ro.product.model 与 devices[].name 进行匹配。
+        支持子串匹配：配置中的 name 是设备 model 的子串，或反过来。
+
+        Args:
+            model: 设备型号名称 (adb shell getprop ro.product.model)
+
+        Returns:
+            匹配的设备配置字典，未找到返回 None
+
+        Examples:
+            >>> cfg.get_device_config_by_model("NOH-AN01")
+            {"name": "NOH-AN01", "platform_version": "12", ...}
+            >>> cfg.get_device_config_by_model("unknown_device")
+            None
+        """
+        if not model:
+            return None
+        devices = self._config.get("devices", [])
+        for idx, device in enumerate(devices):
+            name = device.get("name", "")
+            if name and (name in model or model in name):
+                logger.debug(
+                    f"设备型号匹配: model='{model}' -> devices[{idx}].name='{name}'"
+                )
+                return device.copy()
+        return None
+
+    def get_device_config_by_udid(self, udid: str) -> Optional[Dict[str, Any]]:
+        """
+        根据设备 UDID/序列号 查找匹配的设备配置
+
+        Args:
+            udid: 设备序列号 (adb devices 输出的 ID)
+
+        Returns:
+            匹配的设备配置字典，未找到返回 None
+        """
+        if not udid:
+            return None
+        devices = self._config.get("devices", [])
+        for idx, device in enumerate(devices):
+            cfg_udid = device.get("udid", "")
+            if cfg_udid and cfg_udid == udid:
+                logger.debug(
+                    f"设备UDID匹配: udid='{udid}' -> devices[{idx}]"
+                )
+                return device.copy()
+        return None
 
     def get_all_devices(self) -> List[Dict[str, Any]]:
         """获取所有Android设备配置列表"""

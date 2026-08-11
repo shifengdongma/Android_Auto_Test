@@ -870,6 +870,76 @@ class ADBHelper:
         )
         return result["returncode"] == 0
 
+    def extract_apk(
+        self,
+        package_name: str,
+        output_path: Optional[str] = None,
+        device_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """
+        从设备中提取已安装应用的APK文件
+
+        用于:
+            - 从旧设备提取APK安装到新设备
+            - 备份已安装的应用
+
+        Args:
+            package_name: 应用包名
+            output_path: 输出文件路径 (.apk)，默认保存到当前目录
+            device_id: 设备ID
+
+        Returns:
+            str: 提取的APK文件路径，失败返回None
+
+        Examples:
+            >>> adb.extract_apk("com.dolphin.atc", "dolphin_atc.apk")
+            'dolphin_atc.apk'
+        """
+        logger.info(f"从设备提取APK: {package_name}")
+
+        # 步骤1: 获取APK在设备上的路径
+        path_result = self._run_adb(
+            ["shell", "pm", "path", package_name],
+            device_id=device_id,
+        )
+        if path_result["returncode"] != 0 or not path_result["stdout"]:
+            logger.error(f"未找到应用包: {package_name}")
+            return None
+
+        # 输出格式: "package:/data/app/com.dolphin.atc-xxx/base.apk"
+        apk_path_line = path_result["stdout"].split("\n")[0]
+        if not apk_path_line.startswith("package:"):
+            logger.error(f"无法解析APK路径: {apk_path_line}")
+            return None
+
+        remote_path = apk_path_line.replace("package:", "").strip()
+        logger.info(f"设备APK路径: {remote_path}")
+
+        # 步骤2: 确定输出路径
+        if output_path is None:
+            output_path = f"{package_name}.apk"
+
+        # 步骤3: Pull APK到本地
+        pull_result = self._run_adb(
+            ["pull", remote_path, output_path],
+            device_id=device_id,
+            timeout=60,
+        )
+        if pull_result["returncode"] != 0 or "error" in pull_result["stdout"].lower():
+            logger.error(f"APK提取失败: {pull_result['stdout']}")
+            return None
+
+        # 验证文件已创建
+        import os
+        abs_path = os.path.abspath(output_path)
+        if os.path.exists(abs_path):
+            size_mb = os.path.getsize(abs_path) / (1024 * 1024)
+            logger.info(f"APK提取成功: {abs_path} ({size_mb:.1f} MB)")
+            return abs_path
+        else:
+            logger.error(f"APK文件未创建: {abs_path}")
+            return None
+
     def grant_permission(
         self,
         package_name: str,

@@ -124,9 +124,16 @@ class AppiumDriverManager:
                 logger.warning("现有Session已失效，将重新创建")
                 self._driver = None
 
-        # 加载设备配置
+        # 自动匹配当前连接的设备 → 选择最佳配置
         if platform == "Android":
-            self._device_config = self._config.get_device_config(device_index)
+            # 先尝试自动匹配设备型号，匹配成功则使用对应配置
+            matched_index = self._auto_match_device(device_index)
+            if matched_index != device_index:
+                # auto_match_device 已将配置写入 self._device_config
+                pass
+            else:
+                # 未匹配到，使用请求的索引加载配置
+                self._device_config = self._config.get_device_config(device_index)
             self._auto_fix_platform_version()  # 自动适配实际设备版本
         elif platform == "iOS":
             self._device_config = self._config.get_ios_device_config(device_index)
@@ -199,6 +206,164 @@ class AppiumDriverManager:
                     self._device_config["platform_version"] = actual_version
         except Exception as e:
             logger.debug(f"自动检测设备版本失败 (不影响流程): {e}")
+
+    def _auto_match_device(self, device_index: int) -> int:
+        """
+        自动匹配当前连接的设备到配置中的设备条目
+
+        通过 ADB 获取当前连接设备的 model 和 UDID，
+        与 config.yaml 中 devices 列表逐一匹配。
+
+        匹配优先级:
+            1. UDID 精确匹配 (config.udid == adb_device.id)
+            2. Model 名称子串匹配 (config.name in adb_device.model 或反过来)
+            3. 回退到 device_index 参数
+
+        Args:
+            device_index: 请求的设备索引（回退用）
+
+        Returns:
+            int: 匹配到的设备索引
+        """
+        try:
+            from utils.adb_helper import ADBHelper
+            adb = ADBHelper()
+            devices = adb.get_connected_devices()
+            online = [d for d in devices if d["status"] == "device"]
+
+            if not online:
+                logger.debug("没有在线设备，使用配置的设备索引")
+                return device_index
+
+            device_info = online[0]  # 取第一台在线设备
+            adb_udid = device_info["id"]
+            adb_model = device_info["model"]
+
+            logger.info(
+                f"检测到设备: model='{adb_model}', udid='{adb_udid}', "
+                f"android_version='{device_info['android_version']}'"
+            )
+
+            # 优先级1: UDID 精确匹配
+            matched = self._config.get_device_config_by_udid(adb_udid)
+            if matched:
+                match_index = self._find_device_index(matched)
+                logger.info(
+                    f"自动匹配设备(UDID): '{adb_udid}' -> devices[{match_index}] "
+                    f"'{matched.get('name', '')}'"
+                )
+                self._device_config = matched
+                return match_index
+
+            # 优先级2: Model 名称匹配
+            matched = self._config.get_device_config_by_model(adb_model)
+            if matched:
+                match_index = self._find_device_index(matched)
+                logger.info(
+                    f"自动匹配设备(Model): '{adb_model}' -> devices[{match_index}] "
+                    f"'{matched.get('name', '')}'"
+                )
+                self._device_config = matched
+                return match_index
+
+            logger.info(
+                f"未找到设备 '{adb_model}' 的匹配配置，"
+                f"使用默认索引 devices[{device_index}]"
+            )
+            return device_index
+
+        except Exception as e:
+            logger.debug(f"自动设备匹配失败 (不影响流程): {e}")
+            return device_index
+
+    def _find_device_index(self, target: Dict[str, Any]) -> int:
+        """根据设备配置字典查找其在 devices 列表中的索引"""
+        devices = self._config.get_all_devices()
+        target_name = target.get("name", "")
+        for idx, device in enumerate(devices):
+            if device.get("name") == target_name:
+                return idx
+        return -1
+
+    def _ensure_app_installed(self, app_package: str, udid: str = "") -> None:
+        """
+        预检查：确认被测应用已安装在设备上
+
+        1. 通过 ADB 检查应用是否已安装
+        2. 未安装时尝试从本地 APK 目录自动安装
+        3. 无本地 APK 时给出清晰的错误提示和解决方案
+
+        Args:
+            app_package: 应用包名 (如 com.dolphin.atc)
+            udid: 设备序列号
+
+        Raises:
+            RuntimeError: 应用未安装且无法自动安装
+        """
+        try:
+            from utils.adb_helper import ADBHelper
+            adb = ADBHelper()
+            device_id = udid if udid else None
+
+            # 检查应用是否已安装
+            if adb.is_app_installed(app_package, device_id=device_id):
+                logger.info(f"[OK] 应用已安装: {app_package}")
+                return
+
+            # === 应用未安装，尝试自动修复 ===
+            logger.warning(f"[WARN] 应用未安装: {app_package}")
+
+            # 尝试从本地APK目录安装
+            from utils.apk_manager import APKManager
+            apk_mgr = APKManager(adb=adb, config=self._config)
+            latest_apk = apk_mgr.get_latest_apk()
+
+            if latest_apk:
+                logger.info(f"正在自动安装APK: {latest_apk}")
+                success = adb.install_app(str(latest_apk), device_id=device_id)
+                if success:
+                    logger.info(f"[OK] APK安装成功: {app_package}")
+                    return
+                else:
+                    logger.error("APK安装失败，请手动安装")
+
+            # 没有本地APK，给出清晰指引
+            apk_dir = apk_mgr.get_apk_dir()
+            error_msg = (
+                f"\n{'='*60}\n"
+                f"  被测应用未安装: {app_package}\n"
+                f"{'='*60}\n"
+                f"\n"
+                f"  当前设备上没有安装该应用，本地APK目录也为空。\n"
+                f"  APK目录: {apk_dir}\n"
+                f"\n"
+                f"  解决方案:\n"
+                f"\n"
+                f"  [方案1] 从旧设备提取APK (推荐):\n"
+                f"    1. 连接旧设备 (已安装该应用的设备)\n"
+                f"    2. 运行: python -c \"from utils.adb_helper import ADBHelper; "
+                f"ADBHelper().extract_apk('{app_package}', '{app_package}.apk')\"\n"
+                f"    3. 将提取的APK放入: {apk_dir}\n"
+                f"    4. 重新连接新设备并运行测试\n"
+                f"\n"
+                f"  [方案2] 通过ADB手动提取:\n"
+                f"    1. adb shell pm path {app_package}\n"
+                f"    2. adb pull /data/app/.../base.apk {app_package}.apk\n"
+                f"    3. 切换设备: adb -s <新设备ID> install {app_package}.apk\n"
+                f"\n"
+                f"  [方案3] 切换到浏览器模式 (不需安装APK):\n"
+                f"    修改 config/config.yaml: test_mode: browser\n"
+                f"\n"
+                f"  [方案4] 手动放入APK:\n"
+                f"    将APK文件放入 {apk_dir} 目录后重新运行\n"
+                f"{'='*60}"
+            )
+            raise RuntimeError(error_msg)
+
+        except RuntimeError:
+            raise  # 重新抛出自定义的 RuntimeError
+        except Exception as e:
+            logger.debug(f"应用安装检查失败 (不影响流程): {e}")
 
     # ============================================================
     # 内部方法 - Driver创建
@@ -340,6 +505,10 @@ class AppiumDriverManager:
                 options.app_package = app_package
             if app_activity:
                 options.app_activity = app_activity
+
+            # --- 预检查: 确认应用已安装 ---
+            if app_package:
+                self._ensure_app_installed(app_package, udid)
 
             options.no_reset = self._device_config.get("no_reset", True)
             options.full_reset = self._device_config.get("full_reset", False)
