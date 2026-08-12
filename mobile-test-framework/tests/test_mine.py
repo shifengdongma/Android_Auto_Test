@@ -280,3 +280,61 @@ def test_user_profile(mine_page, config):
         logger.info(f"公司名称: {company}")
 
     logger.info("✅ 个人信息显示正常")
+
+
+# ============================================================
+# 信誉明细页面导航测试 (新增 - 原型对齐)
+# ============================================================
+
+@allure.epic("低空空管系统")
+@allure.feature("我的")
+@allure.story("信誉积分")
+@allure.title("信誉明细页面导航与内容验证")
+@pytest.mark.mine
+@pytest.mark.smoke
+def test_credit_detail_navigation(mine_page, config):
+    """
+    测试场景: 从"我的"页面点击信誉积分卡片进入信誉明细页
+
+    验证点:
+        - 信誉积分卡片可点击
+        - 跳转至信誉明细页面
+        - 明细页显示企业名称和积分
+        - 加分项和扣分项列表存在
+        - 积分政策解读入口存在
+
+    对应原型: pages/小程序_信誉明细.html
+    """
+    from pages.credit_detail_page import CreditDetailPage
+
+    with allure.step("1. 点击信誉积分卡片进入明细"):
+        credit_page = mine_page.go_to_credit_detail()
+
+    with allure.step("2. 验证信誉明细页面加载"):
+        assert credit_page.is_on_credit_detail_page(), "应进入信誉明细页面"
+
+    with allure.step("3. 验证积分显示"):
+        score = credit_page.get_credit_score()
+        logger.info(f"当前信誉积分: {score}")
+        assert score >= 0, "信誉积分应 >= 0"
+
+    with allure.step("4. 验证等级映射"):
+        level = credit_page.get_credit_level()
+        logger.info(f"信誉等级: {level}")
+        assert level in ("优秀", "良好", "告警", "限制"), f"无效的信誉等级: {level}"
+
+    with allure.step("5. 验证累计统计"):
+        total_plus = credit_page.get_total_plus()
+        total_minus = credit_page.get_total_minus()
+        logger.info(f"累计加分: +{total_plus}, 累计扣分: -{total_minus}")
+
+    with allure.step("6. 验证规则列表"):
+        plus_rules = credit_page.get_plus_rules()
+        minus_rules = credit_page.get_minus_rules()
+        logger.info(f"加分项: {len(plus_rules)}条, 扣分项: {len(minus_rules)}条")
+
+    with allure.step("7. 验证积分政策入口"):
+        assert credit_page.verify_score_rules_displayed(), \
+            "积分规则展示不完整"
+
+    logger.info("✅ 信誉明细页面验证通过")

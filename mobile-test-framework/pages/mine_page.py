@@ -170,6 +170,19 @@ class MinePage(BasePage):
         self.click(locator)
         return self
 
+    def go_to_credit_detail(self):
+        """
+        点击信誉积分卡片 → 进入信誉明细页面
+
+        Returns:
+            CreditDetailPage
+        """
+        from pages.credit_detail_page import CreditDetailPage
+
+        logger.info("点击信誉积分卡片，进入信誉明细")
+        self.click_credit_score_card()
+        return CreditDetailPage(self.driver)
+
     def verify_score_range(self, expected_min: int, expected_max: int) -> bool:
         """
         验证信誉分是否在预期范围内

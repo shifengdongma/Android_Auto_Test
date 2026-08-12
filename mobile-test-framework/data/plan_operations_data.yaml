@@ -1,0 +1,116 @@
+# 飞行计划操作测试数据
+# 用于 test_plan_operations.py 数据驱动
+
+# 计划状态流转矩阵 (来自原型文档)
+status_transitions:
+  - from_status: "审批中"
+    action: "撤回"
+    to_status: "取消"
+    allowed_roles: ["运营人"]
+    button: "撤回"
+    description: "审批中可撤回"
+
+  - from_status: "审批通过"
+    action: "推延"
+    to_status: "待飞行"
+    allowed_roles: ["运营人"]
+    button: "推延"
+    max_times: 2
+    description: "审批通过后推延执飞时间"
+
+  - from_status: "审批通过"
+    action: "放飞申请"
+    to_status: "待飞行"
+    allowed_roles: ["运营人"]
+    button: "放飞申请"
+    description: "单次计划放飞申请"
+
+  - from_status: "审批通过"
+    action: "取消"
+    to_status: "取消"
+    allowed_roles: ["运营人"]
+    button: "取消"
+    description: "审批通过后取消"
+
+  - from_status: "审批通过"
+    action: "变更"
+    to_status: "审批中"
+    allowed_roles: ["运营人"]
+    button: "编辑"
+    description: "变更后重新审批"
+
+  - from_status: "审批驳回"
+    action: "编辑"
+    to_status: "审批中"
+    allowed_roles: ["运营人"]
+    button: "编辑"
+    description: "驳回后编辑重提"
+
+  - from_status: "待飞行"
+    action: "推延"
+    to_status: "待飞行"
+    allowed_roles: ["运营人"]
+    button: "推延"
+    description: "悬挂/预激活状态推延"
+
+  - from_status: "待飞行"
+    action: "取消"
+    to_status: "取消"
+    allowed_roles: ["运营人"]
+    button: "取消"
+    description: "待飞行状态取消"
+
+  - from_status: "执飞中"
+    action: "取消"
+    to_status: "取消"
+    allowed_roles: ["运营人"]
+    button: "取消"
+    description: "执飞中取消"
+
+# 计划详情必要字段
+required_fields:
+  - field: "计划编号"
+    key: "plan_number"
+    description: "唯一计划标识"
+
+  - field: "状态标签"
+    key: "status"
+    description: "审批中/审批通过/审批驳回/待飞行/执飞中/已完成/取消"
+
+  - field: "执飞时段"
+    key: "flight_time"
+    description: "计划执飞开始和结束时间"
+
+  - field: "航空器"
+    key: "aircraft"
+    description: "选择的航空器信息"
+
+  - field: "操控员"
+    key: "pilot"
+    description: "选择的操控员"
+
+  - field: "计划性质"
+    key: "plan_nature"
+    description: "任务性质描述"
+
+  - field: "航路出发"
+    key: "departure"
+    description: "起飞起降场"
+
+  - field: "航路到达"
+    key: "arrival"
+    description: "降落起降场"
+
+# 推延测试数据
+delay_cases:
+  - times: 1
+    description: "第1次推延 - 允许"
+    should_allow: true
+
+  - times: 2
+    description: "第2次推延 - 允许 (最后一次)"
+    should_allow: true
+
+  - times: 3
+    description: "第3次推延 - 拒绝 (超过上限)"
+    should_allow: false

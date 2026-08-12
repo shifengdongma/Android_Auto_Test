@@ -39,6 +39,8 @@ MODULE_FILES = {
     "network": "tests/test_network.py",
     "stability": "tests/test_stability.py",
     "register": "tests/test_register.py",
+    "alert": "tests/test_alert_detail.py",
+    "plan-ops": "tests/test_plan_operations.py",
 }
 
 

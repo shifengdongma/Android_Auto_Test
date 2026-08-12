@@ -1,0 +1,46 @@
+# 告警测试数据
+# 用于 test_alert_detail.py 数据驱动
+
+alert_scenarios:
+  - alert_id: "AL_1780972553014193"
+    category: "中期冲突预警"
+    level: "重要"
+    status: "已关闭"
+    expected_objects: 2
+    expected_timeline_entries: 2
+    description: "中期冲突告警-已关闭状态"
+
+  - alert_id: "AL_CONFLICT_001"
+    category: "飞行计划冲突预警"
+    level: "紧急"
+    status: "待处理"
+    expected_objects: 2
+    expected_timeline_entries: 0
+    description: "飞行计划冲突-待处理"
+
+  - alert_id: "AL_DEVIATION_001"
+    category: "偏离预设航路告警"
+    level: "重要"
+    status: "部分签收"
+    expected_objects: 1
+    expected_timeline_entries: 1
+    description: "偏离航路-部分签收"
+
+alert_priorities:
+  - level: "紧急"
+    expected_class: "p-high"
+    color: "红色"
+  - level: "重要"
+    expected_class: "p-mid"
+    color: "橙色"
+  - level: "一般"
+    expected_class: "p-low"
+    color: "蓝色"
+
+alert_operations:
+  - operation: "签收"
+    expected_new_status: "部分签收"
+    description: "签收后状态变更"
+  - operation: "忽略"
+    expected_new_status: "已关闭"
+    description: "忽略后关闭告警"
