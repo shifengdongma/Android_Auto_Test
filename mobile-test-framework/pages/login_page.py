@@ -146,12 +146,14 @@ class LoginPage(BasePage):
             if error is None:
                 from pages.home_page import HomePage
                 return HomePage(self.driver)
-            if "验证码" not in error:
+            if error and "验证码" not in error:
                 # 账号/密码类业务错误, 不重试
                 self.take_screenshot("login_failed")
                 raise TimeoutException(f"登录失败: {error}")
+            # 验证码错误或未捕获到错误提示 (空串): 均按验证码失败重试
             logger.warning(
-                f"验证码错误, 刷新重试 ({attempt}/{self.MAX_CAPTCHA_RETRIES}): {error}"
+                f"验证码错误或未捕获到错误提示, 刷新重试 ({attempt}/{self.MAX_CAPTCHA_RETRIES}): "
+                f"{error if error else '未捕获到错误提示, 按验证码失败处理'}"
             )
             self.refresh_captcha()
 
@@ -397,7 +399,13 @@ class LoginPage(BasePage):
         self.wait_seconds(2.0)  # 等待登录请求返回 (get_error_message 内部另有等待, 容忍慢跳转)
         if not self.is_on_login_page():
             return None
-        return self.get_error_message(timeout=5)
+        error = self.get_error_message(timeout=5)
+        if not error:
+            # 未捕获到错误提示: 再等 2 秒确认是否为慢跳转成功
+            self.wait_seconds(2.0)
+            if not self.is_on_login_page():
+                return None
+        return error
 
     @staticmethod
     def _element_center(element):
