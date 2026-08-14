@@ -10,8 +10,8 @@
 
 # --- 默认测试账号 ---
 default:
-  username: "testuser"
-  password: "testpass123"
+  username: "liyang"
+  password: "Liyang@1128"
   email: "test@dolphin.com"
   role: "普通用户"
 

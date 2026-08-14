@@ -56,8 +56,8 @@ devices:
     platform_version: "16"        # adb shell getprop ro.build.version.release
     device_name: "Xiaomi_Redmi"
     udid: ""                      # 当前设备ID: 438014b9, 留空自动检测
-    app_package: "com.dolphin.atc"
-    app_activity: ".MainActivity"
+    app_package: "com.keda.atc"
+    app_activity: "io.dcloud.PandoraEntry"
     automation_name: "UiAutomator2"
     no_reset: true            # 不重置APP数据
     full_reset: false
@@ -75,9 +75,8 @@ devices:
     platform_version: "12"        # Android 12
     device_name: "Huawei_NOH"
     udid: ""                      # 留空自动检测
-    # TODO: 验证框架后改回 com.dolphin.atc / .MainActivity
-    app_package: "com.baidu.searchbox"
-    app_activity: ".SplashActivity"
+    app_package: "com.keda.atc"
+    app_activity: "io.dcloud.PandoraEntry"
     automation_name: "UiAutomator2"
     no_reset: true
     full_reset: false
@@ -93,8 +92,8 @@ devices:
     platform_version: "14"
     device_name: "emulator-5554"
     udid: "emulator-5554"
-    app_package: "com.dolphin.atc"
-    app_activity: ".MainActivity"
+    app_package: "com.keda.atc"
+    app_activity: "io.dcloud.PandoraEntry"
     automation_name: "UiAutomator2"
     no_reset: false
     full_reset: false
@@ -119,8 +118,8 @@ ios_devices:
 # ---- 测试账号配置 (示例，实际值由测试环境决定) ----
 test_accounts:
   default:
-    username: "testuser"
-    password: "testpass123"
+    username: "liyang"
+    password: "Liyang@1128"
     email: "test@dolphin.com"
   admin:
     username: "admin"
@@ -138,8 +137,8 @@ environments:
     app_package: "com.dolphin.atc.dev"
     app_activity: ".MainActivity"
   test:
-    app_package: "com.dolphin.atc"
-    app_activity: ".MainActivity"
+    app_package: "com.keda.atc"
+    app_activity: "io.dcloud.PandoraEntry"
   staging:
     app_package: "com.dolphin.atc.staging"
     app_activity: ".MainActivity"
@@ -147,7 +146,7 @@ environments:
 # ---- APK配置 (安装/升级/版本检测) ----
 apk:
   dir: "apk"                        # 本地APK目录(相对mobile-test-framework/), 不存在自动创建
-  package_name: "com.dolphin.atc"   # 缺省包名(与 devices[].app_package 一致)
+  package_name: "com.keda.atc"      # 缺省包名(与 devices[].app_package 一致)
   aapt_path: ""                     # aapt路径, 留空自动探测 (ANDROID_HOME/LOCALAPPDATA SDK build-tools)
 
 # ---- 性能采集配置 ----
