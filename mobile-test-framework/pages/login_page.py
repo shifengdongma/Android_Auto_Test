@@ -13,14 +13,17 @@
 对应原型: pages/小程序_登录.html
 """
 
+import base64
 import logging
 from typing import Optional
 
 from appium.webdriver.common.appiumby import AppiumBy
+from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from pages.base_page import BasePage
+from utils.captcha_solver import ArithmeticCaptchaSolver, decode_base64_png
 
 logger = logging.getLogger(__name__)
 
@@ -37,10 +40,12 @@ class LoginPage(BasePage):
     # ============================================================
 
     # --- 登录表单 ---
+    # 新APK (com.keda.atc) 输入框无 resource-id, 按出现顺序定位 (真机实测可用)
     USERNAME_INPUT = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().className("android.widget.EditText").instance(0)')
     PASSWORD_INPUT = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().className("android.widget.EditText").instance(1)')
     CAPTCHA_INPUT = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().className("android.widget.EditText").instance(2)')
-    CAPTCHA_IMAGE = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().descriptionContains("验证码")')
+    # 验证码图片: Image 元素中 text 属性携带 base64 数据者 (由 _find_captcha_image 过滤)
+    CAPTCHA_IMAGE = (AppiumBy.CLASS_NAME, "android.widget.Image")
 
     LOGIN_BUTTON = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("登录")')
     FORGOT_PASSWORD_LINK = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().text("忘记密码")')
@@ -64,66 +69,26 @@ class LoginPage(BasePage):
     TOAST_TEXT = (AppiumBy.XPATH, "//android.widget.Toast")
     PAGE_TITLE = (AppiumBy.ANDROID_UIAUTOMATOR, 'new UiSelector().textContains("低空")')
 
-    # --- 备用定位 (根据实际APP调整resource-id) ---
-    ALT_USERNAME_INPUT = (AppiumBy.ID, "com.dolphin.atc:id/et_username")
-    ALT_PASSWORD_INPUT = (AppiumBy.ID, "com.dolphin.atc:id/et_password")
-    ALT_CAPTCHA_INPUT = (AppiumBy.ID, "com.dolphin.atc:id/et_captcha")
-    ALT_LOGIN_BUTTON = (AppiumBy.ID, "com.dolphin.atc:id/btn_login")
-
     # ============================================================
     # 页面操作方法
     # ============================================================
 
     def enter_username(self, username: str):
-        """
-        输入账号
-
-        Args:
-            username: 账号
-
-        Returns:
-            self: 支持链式调用
-        """
+        """输入账号"""
         logger.info(f"输入账号: {username}")
-        # 优先尝试resource-id定位，回退到通用定位
-        locator = self.ALT_USERNAME_INPUT
-        if not self.is_element_present(locator, timeout=2):
-            locator = self.USERNAME_INPUT
-        self.input_text(locator, username)
+        self.input_text(self.USERNAME_INPUT, username)
         return self
 
     def enter_password(self, password: str):
-        """
-        输入密码
-
-        Args:
-            password: 密码
-
-        Returns:
-            self
-        """
+        """输入密码"""
         logger.info(f"输入密码: {'*' * len(password)}")
-        locator = self.ALT_PASSWORD_INPUT
-        if not self.is_element_present(locator, timeout=2):
-            locator = self.PASSWORD_INPUT
-        self.input_text(locator, password)
+        self.input_text(self.PASSWORD_INPUT, password)
         return self
 
     def enter_captcha(self, captcha: str):
-        """
-        输入图片验证码
-
-        Args:
-            captcha: 4位验证码
-
-        Returns:
-            self
-        """
+        """输入验证码答案"""
         logger.info(f"输入验证码: {captcha}")
-        locator = self.ALT_CAPTCHA_INPUT
-        if not self.is_element_present(locator, timeout=2):
-            locator = self.CAPTCHA_INPUT
-        self.input_text(locator, captcha)
+        self.input_text(self.CAPTCHA_INPUT, captcha)
         return self
 
     def click_login(self):
@@ -134,42 +99,66 @@ class LoginPage(BasePage):
             HomePage: 登录成功后跳转到首页
         """
         logger.info("点击登录按钮")
-        locator = self.ALT_LOGIN_BUTTON
-        if not self.is_element_present(locator, timeout=2):
-            locator = self.LOGIN_BUTTON
-        self.click(locator)
-        # 登录成功后可能跳转到首页
+        self.click(self.LOGIN_BUTTON)
         from pages.home_page import HomePage
         return HomePage(self.driver)
+
+    MAX_CAPTCHA_RETRIES = 3
 
     def login(
         self,
         username: str,
         password: str,
-        captcha: str = "",
+        captcha_override: Optional[str] = None,
     ):
         """
-        完整登录流程 (组合操作)
+        完整登录流程 (自动求解算术验证码)
 
         Args:
             username: 账号
             password: 密码
-            captcha: 验证码 (测试环境可能不需要)
+            captcha_override: 指定验证码答案 (供负例测试)。
+                              非 None 时单发不重试: 失败直接抛出。
 
         Returns:
             HomePage: 登录成功后的首页对象
 
         Raises:
-            TimeoutException: 登录失败 (停留在登录页或弹出错误)
+            TimeoutException: 登录失败 (账号/密码错误, 或验证码重试耗尽)
         """
         logger.info(f"执行登录操作: username={username}")
-        (
-            self.enter_username(username)
-            .enter_password(password)
+        self.enter_username(username).enter_password(password)
+
+        if captcha_override is not None:
+            self.enter_captcha(captcha_override)
+            self.click_login()
+            error = self._get_login_error()
+            if error is None:
+                from pages.home_page import HomePage
+                return HomePage(self.driver)
+            raise TimeoutException(f"登录失败: {error}")
+
+        for attempt in range(1, self.MAX_CAPTCHA_RETRIES + 1):
+            answer = self.solve_captcha()
+            self.enter_captcha(answer)
+            self.click_login()
+            error = self._get_login_error()
+            if error is None:
+                from pages.home_page import HomePage
+                return HomePage(self.driver)
+            if "验证码" not in error:
+                # 账号/密码类业务错误, 不重试
+                self.take_screenshot("login_failed")
+                raise TimeoutException(f"登录失败: {error}")
+            logger.warning(
+                f"验证码错误, 刷新重试 ({attempt}/{self.MAX_CAPTCHA_RETRIES}): {error}"
+            )
+            self.refresh_captcha()
+
+        self.take_screenshot("login_failed")
+        raise TimeoutException(
+            f"登录失败: 验证码识别/校验重试{self.MAX_CAPTCHA_RETRIES}次仍未成功"
         )
-        if captcha:
-            self.enter_captcha(captcha)
-        return self.click_login()
 
     def click_forgot_password(self):
         """
@@ -310,21 +299,112 @@ class LoginPage(BasePage):
 
     def is_login_button_enabled(self) -> bool:
         """判断登录按钮是否可点击"""
-        locator = self.ALT_LOGIN_BUTTON
-        if not self.is_element_present(locator, timeout=2):
-            locator = self.LOGIN_BUTTON
-        return self.is_element_enabled(locator, timeout=3)
+        return self.is_element_enabled(self.LOGIN_BUTTON, timeout=3)
 
     def is_wechat_login_available(self) -> bool:
         """检测微信登录入口是否显示 (预留)"""
         return self.is_element_present(self.WECHAT_LOGIN_BUTTON, timeout=3)
 
+    def solve_captcha(self) -> str:
+        """
+        求解当前验证码 (识别失败自动刷新重试, 最多 MAX_CAPTCHA_RETRIES 次)
+
+        Returns:
+            str: 算术验证码答案 (如 "8")
+
+        Raises:
+            TimeoutException: 连续重试后仍无法求解
+        """
+        solver = ArithmeticCaptchaSolver()
+        image = self._find_captcha_image()
+        for attempt in range(1, self.MAX_CAPTCHA_RETRIES + 1):
+            try:
+                answer = solver.solve(self._get_captcha_image_bytes(image))
+            except Exception as e:
+                logger.warning(f"验证码求解异常: {e}")
+                answer = None
+            if answer:
+                logger.info(f"验证码答案: {answer} (第{attempt}次)")
+                return answer
+            if attempt < self.MAX_CAPTCHA_RETRIES:
+                logger.warning(f"验证码识别失败(第{attempt}次), 刷新重试")
+                self.refresh_captcha()
+                image = self._find_captcha_image()
+        raise TimeoutException(f"验证码识别失败: 连续{self.MAX_CAPTCHA_RETRIES}次无法求解")
+
     def refresh_captcha(self):
-        """刷新图片验证码 (点击验证码图片)"""
+        """刷新验证码 (图片 clickable=false, 改用坐标点击图片中心)"""
         logger.info("刷新验证码")
-        self.click(self.CAPTCHA_IMAGE)
-        self.wait_seconds(0.5)
+        image = self._find_captcha_image()
+        self.tap_coordinates(*self._element_center(image))
+        self.wait_seconds(1.0)
         return self
+
+    def get_captcha_image_base64(self) -> str:
+        """获取当前验证码图片内容 (base64), 供刷新前后对比"""
+        image = self._find_captcha_image()
+        text = image.get_attribute("text") or ""
+        if len(text) > 50:
+            return text
+        return image.screenshot_as_base64
+
+    def _find_captcha_image(self):
+        """
+        定位验证码 Image 元素
+
+        策略: 1) text 属性携带 base64 数据 (len>50) 的 Image
+              2) 兜底: 验证码行位置 (x>=700 且 y>=1150) 的 Image
+
+        Raises:
+            TimeoutException: 未找到
+        """
+        images = self.find_elements(self.CAPTCHA_IMAGE, timeout=10)
+        for img in images:
+            try:
+                if len(img.get_attribute("text") or "") > 50:
+                    return img
+            except Exception:
+                continue
+        for img in images:
+            loc = img.location or {}
+            if loc.get("x", 0) >= 700 and loc.get("y", 0) >= 1150:
+                return img
+        raise TimeoutException("未找到验证码图片元素")
+
+    def _get_captcha_image_bytes(self, image_element) -> bytes:
+        """
+        提取验证码图片字节: 优先 text 属性 base64, 回退元素截图
+
+        Args:
+            image_element: _find_captcha_image() 返回的元素
+
+        Returns:
+            bytes: PNG 图片字节
+        """
+        text = image_element.get_attribute("text") or ""
+        data = decode_base64_png(text)
+        if data:
+            return data
+        return base64.b64decode(image_element.screenshot_as_base64)
+
+    def _get_login_error(self) -> Optional[str]:
+        """
+        登录点击后的结果校验
+
+        Returns:
+            str|None: 错误信息 (仍停留在登录页)；None 表示已离开登录页 (成功)
+        """
+        self.wait_seconds(2.0)  # 等待登录请求返回 (get_error_message 内部另有等待, 容忍慢跳转)
+        if not self.is_on_login_page():
+            return None
+        return self.get_error_message(timeout=5)
+
+    @staticmethod
+    def _element_center(element):
+        """元素中心坐标 (tap 用)"""
+        loc = element.location
+        size = element.size
+        return loc["x"] + size["width"] // 2, loc["y"] + size["height"] // 2
 
     def wait_for_login_page(self, timeout: int = 30):
         """
