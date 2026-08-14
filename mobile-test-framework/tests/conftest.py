@@ -16,6 +16,7 @@ Fixture作用域说明:
 import os
 import sys
 import logging
+import time
 from pathlib import Path
 from datetime import datetime
 
@@ -292,6 +293,35 @@ def logged_in_driver(driver, config):
     home = HomePage(driver)
     assert home.is_on_home_page(), "预登录失败: 未能进入首页"
 
+    return driver
+
+
+@pytest.fixture(scope="function")
+def fresh_logged_in_driver(driver, config):
+    """
+    干净状态 + 已登录的driver (真机新模块用例使用)
+
+    清空应用数据后重新拉起并登录。原因: uni-app WebView的a11y树
+    构建与页面初始状态依赖干净数据, 登录态/滚动态持久化会导致
+    定位不稳定 (见 utils/webview_a11y 模块注释)。
+    """
+    from utils.webview_a11y import ensure_fresh_state
+    from pages.login_page import LoginPage
+
+    ensure_fresh_state(config)
+    driver.activate_app(config.get("devices")[0]["app_package"])
+    time.sleep(5)
+
+    account = config.get_test_account("default")
+    login_page = LoginPage(driver)
+    login_page.wait_for_login_page(timeout=20)
+    login_page.login(account["username"], account["password"])
+    try:
+        driver.hide_keyboard()
+    except Exception:
+        pass
+    time.sleep(2)
+    logger.info("干净状态登录完成")
     return driver
 
 
