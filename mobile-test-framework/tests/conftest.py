@@ -386,8 +386,11 @@ def pytest_runtest_makereport(item, call):
         logger.warning("无法获取driver实例，跳过失败截图")
         return
 
-    # 生成截图文件名
-    test_name = item.nodeid.replace("::", "_").replace("/", "_")
+    # 生成截图文件名 (清理Windows非法字符: 参数化id转义产生的反斜杠与方括号)
+    test_name = (
+        item.nodeid.replace("::", "_").replace("/", "_")
+        .replace("\\", "_").replace("[", "_").replace("]", "_")
+    )
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     screenshot_dir = PROJECT_ROOT / "reports" / "screenshots"
     screenshot_dir.mkdir(parents=True, exist_ok=True)

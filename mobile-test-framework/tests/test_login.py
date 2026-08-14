@@ -23,9 +23,31 @@ from selenium.common.exceptions import TimeoutException
 import pytest
 import allure
 
+from appium.webdriver.common.appiumby import AppiumBy
+
 from pages.login_page import LoginPage
 
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# 模块级 Fixtures
+# ============================================================
+
+@pytest.fixture(autouse=True)
+def ensure_login_page(driver, config):
+    """
+    确保每个用例从登录页开始
+
+    登录成功后 no_reset 会保留登录态, 后续用例启动直达首页,
+    导致等待登录页超时。清空应用数据后重新拉起, 保证确定性。
+    """
+    from utils.adb_helper import ADBHelper
+
+    pkg = config.get("devices")[0]["app_package"]
+    ADBHelper().clear_app_data(pkg)
+    driver.activate_app(pkg)
+    yield
 
 
 # ============================================================
@@ -43,7 +65,7 @@ def test_login_success(driver, config):
     测试场景: 使用有效的账号密码登录 (自动求解算术验证码)
 
     预期结果:
-        - 登录成功后离开登录页 (首页特征断言在真机校准后补充)
+        - 登录成功后离开登录页, 出现首页底部Tab (实测特征: "申报")
     """
     account = config.get_test_account("default")
     login_page = LoginPage(driver)
@@ -54,11 +76,18 @@ def test_login_success(driver, config):
     with allure.step("2. 自动识别验证码并登录"):
         login_page.login(account["username"], account["password"])
 
-    with allure.step("3. 验证已离开登录页"):
+    with allure.step("3. 验证进入首页"):
         assert not login_page.is_on_login_page(), (
             f"登录失败: 仍停留在登录页\n当前页面: {driver.current_activity}"
         )
-        logger.info("✅ 登录成功，已离开登录页")
+        # 真机实测: 登录后首页底部Tab文本为 首页/申报/资讯/我的
+        home_marker = (
+            AppiumBy.ANDROID_UIAUTOMATOR,
+            'new UiSelector().text("申报")',
+        )
+        assert login_page.is_element_present(home_marker, timeout=10), \
+            "已离开登录页但未发现首页特征元素(底部Tab)"
+        logger.info("✅ 登录成功，已进入首页")
 
 
 # ============================================================
