@@ -9,17 +9,17 @@
 
 # --- 异常登录场景 (参数化) ---
 login_failure_cases:
-  - username: "testuser"
+  - username: "liyang"
     password: "wrong_password_123"
     expected_error: "密码错误"
     description: "正确账号 + 错误密码"
 
   - username: ""
-    password: "testpass123"
+    password: "Liyang@1128"
     expected_error: "请输入账号"
     description: "空账号"
 
-  - username: "testuser"
+  - username: "liyang"
     password: ""
     expected_error: "请输入密码"
     description: "空密码"
@@ -60,6 +60,6 @@ captcha_cases:
     expected_error: "请输入验证码"
     description: "空验证码"
 
-  - captcha: "AAAA"
+  - captcha: "0"
     expected_error: "验证码错误"
-    description: "错误验证码"
+    description: "错误验证码(算术答案错误)"
