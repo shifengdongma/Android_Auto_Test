@@ -258,6 +258,47 @@ class FlightPage(BasePage):
         """选择操控员 (弹层列表首项)"""
         return self._select_form_picker("请选择操控员", "选择操控员")
 
+    def enter_loiter_flight(self):
+        """
+        点击底部"留空飞行" -> 进入留空飞行空域绘制页
+
+        Returns:
+            LoiterPage: 留空飞行绘制页对象 (继承FlightPage, 后续
+            下一步->填写飞行计划->提交 复用原有流程)
+        """
+        logger.info("进入留空飞行空域绘制页")
+        el = webview_a11y.find_visible_by_text(
+            self.driver, "留空飞行", timeout=8, min_y=2000
+        )
+        assert el is not None, "未找到留空飞行按钮"
+        x, y = webview_a11y.element_center(el)
+        self.driver.tap([(x, y)])
+        time.sleep(2.5)
+        assert (
+            webview_a11y.find_text(self.driver, "留空飞行空域绘制", timeout=8)
+            is not None
+        ), "未进入留空飞行空域绘制页"
+        return LoiterPage(self.driver)
+
+    def open_my_plans(self) -> bool:
+        """
+        点击底部"我的计划" -> 计划列表页
+
+        Returns:
+            bool: 是否进入计划列表页 (特征: 顶部"全部状态"筛选器)
+        """
+        logger.info("打开我的计划")
+        el = webview_a11y.find_visible_by_text(
+            self.driver, "我的计划", timeout=8, min_y=2000
+        )
+        assert el is not None, "未找到我的计划按钮"
+        x, y = webview_a11y.element_center(el)
+        self.driver.tap([(x, y)])
+        time.sleep(2.5)
+        ok = self.has_text("全部状态", timeout=8)
+        logger.info(f"我的计划: {'已打开' if ok else '打开失败'}")
+        return ok
+
     def submit_plan(self) -> bool:
         """
         点击底部提交按钮 -> 确认弹窗点"确定"
@@ -295,4 +336,129 @@ class FlightPage(BasePage):
         time.sleep(3)
         ok = self.has_text("我的计划", timeout=5)
         logger.info(f"提交飞行计划: {'成功(已进入我的计划)' if ok else '失败'}")
+        return ok
+
+
+class LoiterPage(FlightPage):
+    """
+    留空飞行空域绘制页 (申报页底部"留空飞行"进入)
+
+    页面结构 (真机实测, NOH-AN01 2026-08-14):
+        - 标题: 留空飞行空域绘制
+        - 空域类型: 多边形 | 圆形 | 线缓冲区 (y≈1485-1539, 点击切换)
+        - 地图画布区: y≈250-1400, 绘制手势作用于此区域
+        - 请输入空域名称 (y≈1653), 常飞空域
+        - 出发时间区 (y≈1827+) 与 下一步 按钮 (底部)
+
+    绘制手势 (实测):
+        - 多边形/线缓冲区: 单击加点, 双击结束 (mobile: doubleClickGesture)
+        - 圆形: 长按后向外拖动 (mobile: dragGesture, duration=1500)
+
+    后续流程与普通飞行计划一致: 下一步 -> 填写飞行计划 (航空器/操控员/提交),
+    继承 FlightPage 复用 select_aircraft/select_operator/submit_plan。
+    """
+
+    # ---- 实测绘制坐标 (地图画布区内) ----
+    POLYGON_TRIANGLE = [(400, 750), (750, 750), (575, 550)]
+    CIRCLE_CENTER = (550, 750)
+    CIRCLE_EDGE = (780, 750)
+    BUFFER_LINE = [(350, 900), (800, 900)]
+
+    def select_type(self, type_name: str) -> bool:
+        """点击切换空域绘制类型 (多边形/圆形/线缓冲区)"""
+        el = webview_a11y.find_visible_by_text(
+            self.driver, type_name, timeout=8, min_y=1400
+        )
+        assert el is not None, f"未找到空域类型: {type_name}"
+        x, y = webview_a11y.element_center(el)
+        self.driver.tap([(x, y)])
+        time.sleep(1)
+        logger.info(f"已选择空域类型: {type_name}")
+        return True
+
+    def _double_click(self, x: int, y: int):
+        """双击结束绘制 (mobile手势优先, 失败回退两次快速tap)"""
+        try:
+            self.driver.execute_script(
+                "mobile: doubleClickGesture", {"x": x, "y": y}
+            )
+            return
+        except Exception as e:
+            logger.warning(f"doubleClickGesture失败({type(e).__name__}), 回退两次tap")
+        self.driver.tap([(x, y)])
+        time.sleep(0.08)
+        self.driver.tap([(x, y)])
+
+    def draw_polygon(self, points=None) -> bool:
+        """多边形绘制: 依次单击各顶点, 末点双击结束"""
+        points = points or self.POLYGON_TRIANGLE
+        for i, (x, y) in enumerate(points, 1):
+            self.driver.tap([(x, y)])
+            time.sleep(0.8)
+            logger.debug(f"多边形顶点{i}: ({x},{y})")
+        self._double_click(points[-1][0], points[-1][1])
+        time.sleep(1.5)
+        logger.info(f"多边形绘制完成 ({len(points)}个顶点)")
+        return True
+
+    def draw_buffer(self, points=None) -> bool:
+        """线缓冲区绘制: 依次单击路径点, 末点双击结束"""
+        points = points or self.BUFFER_LINE
+        for i, (x, y) in enumerate(points, 1):
+            self.driver.tap([(x, y)])
+            time.sleep(0.8)
+            logger.debug(f"线缓冲点{i}: ({x},{y})")
+        self._double_click(points[-1][0], points[-1][1])
+        time.sleep(1.5)
+        logger.info(f"线缓冲区绘制完成 ({len(points)}个点)")
+        return True
+
+    def draw_circle(self, center=None, edge=None) -> bool:
+        """圆形绘制: 圆心长按后向边缘拖动 (慢速drag模拟长按)"""
+        center = center or self.CIRCLE_CENTER
+        edge = edge or self.CIRCLE_EDGE
+        try:
+            self.driver.execute_script(
+                "mobile: dragGesture",
+                {
+                    "startX": center[0], "startY": center[1],
+                    "endX": edge[0], "endY": edge[1], "duration": 1500,
+                },
+            )
+        except Exception as e:
+            logger.warning(f"dragGesture失败({type(e).__name__})")
+            return False
+        time.sleep(1.5)
+        logger.info(f"圆形绘制完成 (圆心{center}, 半径至{edge})")
+        return True
+
+    def input_airspace_name(self, name: str = "测试") -> bool:
+        """
+        输入空域名称 (剪贴板+原生粘贴), 完成后关闭输入法键盘
+
+        注意: 键盘不关闭时底部"修改/下一步"按钮被遮挡不可见。
+        """
+        el = webview_a11y.find_visible_by_text(
+            self.driver, "请输入空域名称", timeout=8, min_y=1500
+        )
+        assert el is not None, "未找到空域名称输入框"
+        x, y = webview_a11y.element_center(el)
+        self.driver.tap([(x, y)])
+        time.sleep(1.2)
+        webview_a11y.type_chinese(self.driver, name)
+        # 关闭输入法键盘 (底部按钮需要)
+        try:
+            self.driver.hide_keyboard()
+        except Exception:
+            from utils.adb_helper import ADBHelper
+
+            ADBHelper().press_key(4)
+        time.sleep(1.5)
+        ok = (
+            webview_a11y.find_visible_by_text(
+                self.driver, name, timeout=5, min_y=1500, exact=True
+            )
+            is not None
+        )
+        logger.info(f"空域名称输入: {'成功' if ok else '失败'} ({name})")
         return ok
